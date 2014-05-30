@@ -1,0 +1,12 @@
+# Site settings
+title: 楚夕 Github & Blog
+email: chuxiking@163.com
+description: "程序员的青年阶段"
+baseurl: "/home/king/chuxi.github.io/"
+url: "http://chuxi.github.io"
+
+timezone: Asia/Shanghai
+
+# Build settings
+markdown: kramdown
+permalink: pretty
