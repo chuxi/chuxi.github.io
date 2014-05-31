@@ -1,11 +1,9 @@
 # Site settings
-title: 楚夕 Github & Blog
-email: chuxiking@163.com
-description: "程序员的青年阶段"
-baseurl: "/home/king/chuxi.github.io/"
-url: "http://chuxi.github.io"
-
-timezone: Asia/Shanghai
+title: Your awesome title
+email: your-email@domain.com
+description: "Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description."
+baseurl: ""
+url: "http://yourdomain.com"
 
 # Build settings
 markdown: kramdown
