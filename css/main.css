@@ -22,6 +22,19 @@ a         { color: #2a7ae2; text-decoration: none; }
 a:hover   { color: #000; text-decoration: underline; }
 a:visited { color: #205caa; }
 
+img { align:middle; max-width: 720px;}
+
+pre, xmp, plaintext, listing {
+    white-space: pre-wrap;
+}
+.markdown-body pre > code {
+    white-space: pre-wrap;
+}
+.markdown-body code {
+    white-space: pre-wrap;
+}
+
+
 /* Utility */
 
 .wrap:before,
