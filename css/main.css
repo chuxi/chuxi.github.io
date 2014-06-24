@@ -9,10 +9,10 @@
 html, body { height: 100%; }
 
 body {
-  font-family: Helvetica, Arial, sans-serif, "宋体";
+  font-family: Helvetica, Arial, "Microsoft YaHei", "微软雅黑", sans-serif;
   font-size: 16px;
-  line-height: 1.5;
-  font-weight: 100;
+  line-height: 2;
+  font-weight: normal;
   background-color: #fdfdfd;
 }
 
@@ -21,18 +21,6 @@ h1, h2, h3, h4, h5, h6 { font-size: 100%; font-weight: 400; }
 a         { color: #2a7ae2; text-decoration: none; }
 a:hover   { color: #000; text-decoration: underline; }
 a:visited { color: #205caa; }
-
-img { align:middle; max-width: 720px;}
-
-pre, xmp, plaintext, listing {
-    white-space: pre-wrap;
-}
-.markdown-body pre > code {
-    white-space: pre-wrap;
-}
-.markdown-body code {
-    white-space: pre-wrap;
-}
 
 
 /* Utility */
@@ -182,8 +170,8 @@ pre, xmp, plaintext, listing {
 .post-header { margin: 10px 0 30px; }
 
 .post-header h1 {
-  font-size: 42px;
-  letter-spacing: -1.75px;
+  font-size: 36px;
+  letter-spacing: -1px;
   line-height: 1;
   font-weight: 300;
 }
@@ -199,8 +187,19 @@ pre, xmp, plaintext, listing {
 .post-content > * { margin: 20px 0; }
 
 .post-content p{
-  font-size: 13px;
-  font-family: "宋体";
+  font-size: 14px;
+    letter-spacing: 1px;
+}
+
+.post-content img {
+    align:middle;
+    max-width: 720px;
+    margin: 20px auto;
+}
+
+.post-content hr {
+  border-top: 1px solid #0086B3;
+  border-left: 0px;
 }
 
 .post-content h1,
@@ -240,20 +239,34 @@ pre, xmp, plaintext, listing {
 }
 
 .post-content ul,
-.post-content ol { padding-left: 20px; }
+.post-content ol {
+  padding-left: 16px;
+  list-style: decimal;
+}
+
+.post-content li{
+    font-size: 14px;
+    letter-spacing: 1px;
+}
 
 .post pre,
 .post code {
-  border: 1px solid #d5d5e9;
-  background-color: #eef;
-  padding: 8px 12px;
+  /*border: 1px solid #d5d5e9;*/
+  border-bottom: 1px solid #d5d5e9;
+  border-top: 1px solid #d5d5e9;
+  /*background-color: #eef;*/
+  background-color: #fff;
+  padding: 30px 30px;
+  margin: 20px 0px;
   -webkit-border-radius: 3px;
   -moz-border-radius: 3px;
   border-radius: 3px;
-  font-size: 15px;
+  font-size: 12px;
 }
 
-.post code { padding: 1px 5px; }
+.post pre {white-space: pre-wrap;}
+
+.post code { padding: 1px 1px; }
 
 .post ul,
 .post ol { margin-left: 1.35em; }
