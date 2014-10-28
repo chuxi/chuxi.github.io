@@ -231,6 +231,8 @@ GetItem()是个case class， extends Expression，而且查看GetItem可以看�
 
 上述过程其实都涉及到一个词，叫做resolve，Analyzer的工作就是将Unresolved转为Resolved，所以回到resolve这个函数实现的LogicalPlan类中。
 
+{% highlight ruby %}
+
     options.distinct match {
           case Seq((a, Nil)) => Some(a) // One match, no nested fields, use it.
           // One match, but we also need to extract the requested nested field.
@@ -247,6 +249,8 @@ GetItem()是个case class， extends Expression，而且查看GetItem可以看�
             throw new TreeNodeException(
               this, s"Ambiguous references to $name: ${ambiguousReferences.mkString(",")}")
         }
+
+{% endhighlight %}
 
 这是Wei Li修改的代码，其中对于包含dot.的情况做细分，查看是否为ArrayType，例如arrayOfStruct.field1.就是需要添加判断arrayOfStruct是否为ArrayType。如果是的，则用GetArrayField解析。此处的局限也是很明显的，再深入一层就跪了，也就是arrayOfStruct.field1.arrayOfStruct.field1，想来这也是比较极端的情况范围了，所以不置考虑。
 
