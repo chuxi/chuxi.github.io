@@ -20,7 +20,7 @@ Liao Xuefeng's tutorial (Chinese~~) : [http://www.liaoxuefeng.com/wiki](http://w
 Fabric Tutorial : [http://docs.fabfile.org](http://docs.fabfile.org)
 
 
-Preparation:
+### Preparation
 
 1. Set up your your nodes ip in clusters.
 
@@ -64,8 +64,9 @@ Preparation:
 
 ---
 
+### Usage
 
-Then I record some words about the usage of my program. It is very easy if you understand the fabric principles.
+I record some words about the usage of my program. It is very easy if you understand the fabric principles.
 
         fab -f fabcluster.py installs
 
