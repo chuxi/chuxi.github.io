@@ -11,7 +11,7 @@ fabcluster is a python program for spark (including hadoop, hbase, kafka, zookee
 
 It uses fabric package as the deploy and manage tool. You can use it to setup basic configuration in a cluster, including hosts, disable firewall, create a new user and set all the following deploying and management under the new-user-role's control.
 
-Before you start reading and using my program, I advice you reading some tutorials about python and fabric. ( Before I wrote this program, actually I know nothing about python and fabric. = =| )
+Before you start reading and using my program, I advice you reading some tutorials about python and fabric. \(Before I wrote this program, actually I know nothing about python and fabric. = =|\)
 
 So here is two tutorials I think which are helpful for you to understand my program. I ever wrote some samples for my studying and tried some easy commands in python console, so I just suggest you writing something when you are learning.
 
