@@ -1,7 +1,7 @@
 ---
 layout: post
-title: Spark Vsl4oracle(Spark SQL & Streaming)
-date: 2014-08-23
+title: Spark Vsl4oracle (Spark SQL & Streaming)
+date: 2015-02-04
 categories: spark
 ---
 
