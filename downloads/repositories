@@ -1,0 +1,8 @@
+[repositories]
+local
+osc: http://maven.oschina.net/content/groups/public/
+typesafe: http://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/(scala_[scalaVersion]/)(sbt_[sbtVersion]/)[revision]/[type]s/[artifact](-[classifier]).[ext], bootOnly
+maven-central
+typesafe-maven: http://repo.typesafe.com/typesafe/maven-releases/
+sonatype-oss-releases
+sonatype-oss-snapshots
