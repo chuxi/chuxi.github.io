@@ -231,7 +231,7 @@ GetItem()是个case class， extends Expression，而且查看GetItem可以看�
 
 上述过程其实都涉及到一个词，叫做resolve，Analyzer的工作就是将Unresolved转为Resolved，所以回到resolve这个函数实现的LogicalPlan类中。
 
-{% highlight ruby %}
+{% highlight scala %}
 
     options.distinct match {
           case Seq((a, Nil)) => Some(a) // One match, no nested fields, use it.
