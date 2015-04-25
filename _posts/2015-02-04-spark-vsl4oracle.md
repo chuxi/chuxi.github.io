@@ -50,7 +50,7 @@ Finally I choose to filter the DStream several times to "cut" the DStream into s
         process(MsgVDL24H(MsgOracleHelper(connpro)), rdd.filter(s => s.substring(3, 9).equals("VDL24H")))
     }
 
-I did not find any other solution in spark community. And I think spark did not offer the I-Wanted groupby method is correct. RDD is already divided into partitions. So I am sure there is no other choice. Because I have to deal with a batch of messages by its type.
+I did not find any other solution in spark community. RDD is already divided into partitions.
 
 I defined the process method in main method which is introduced in Configuration and Spark SQL part. The code is not perfect. I know I could adjust the structure to make it better performance( Now I am in lazy val state...)
 
