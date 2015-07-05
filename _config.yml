@@ -9,7 +9,7 @@ github_username:  chuxi
 
 # Build settings
 markdown: kramdown
+kramdown:
+  input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
 
-
-redcarpet:
-  extensions: [fenced_code_blocks]
+highlighter: pygments
