@@ -26,14 +26,14 @@ class HelloWorld {
 
 ------
 
-```scala
-
+```
 sealed trait Message
 case class HelloMessage(msg: String) extends Message
 
 class Actor{
 
 }
-
-
 ```
+
+###No BlankSpace
+### Normal Header

@@ -41,20 +41,22 @@ Fabric Tutorial : [http://docs.fabfile.org](http://docs.fabfile.org)
 
 4. One of the most important thing is to set up your sub-clusters of each role in env.roledefs. You can change some settings here.
 
-        env.roledefs = {
-            'cluster': clusters,
-            'hadoop_master': clusters[:1],
-            'hadoop_smaster': clusters[1:2],
-            'hadoop_slaves': clusters,
-            'zookeeper': clusters[1:],
-            'hbase': clusters,
-            'hbase_master': clusters[1:2],
-            'hbase_slaves': clusters,
-            'kafka': clusters[2:],
-            'spark': clusters,
-            'spark_master': clusters[2:3],
-            'spark_slaves': clusters
-        }
+```
+    env.roledefs = {
+        'cluster': clusters,
+        'hadoop_master': clusters[:1],
+        'hadoop_smaster': clusters[1:2],
+        'hadoop_slaves': clusters,
+        'zookeeper': clusters[1:],
+        'hbase': clusters,
+        'hbase_master': clusters[1:2],
+        'hbase_slaves': clusters,
+        'kafka': clusters[2:],
+        'spark': clusters,
+        'spark_master': clusters[2:3],
+        'spark_slaves': clusters
+    }
+```
 
 5. Set your new user's name, group, password. I believe it is reasonable to use one user for the cluster's every working module.
 
@@ -84,6 +86,7 @@ This two just install singular kafka and spark.
 
 And I set up some interfaces about starts, stops and cleans work.
 
+```
         fab -f fabcluster.py starts
         fab -f fabcluster.py starts:hadoop
         fab -f fabcluster.py starts:hbase
@@ -91,6 +94,7 @@ And I set up some interfaces about starts, stops and cleans work.
         fab -f fabcluster.py stops
 
         fab -f fabcluster.py cleans
+```
 
 In fact, I think you will write your own deploy program. May my program helps.
 
