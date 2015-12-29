@@ -14,25 +14,23 @@ code style and highlight format display
 make sure there is a line before and after the content code
 
 ```java
-
 import java.util.Thread
 import java.collections.Arrays
 
 class HelloWorld {
   System.out.println("hello world!");
 }
-
 ```
 
 ------
 
 ```
-sealed trait Message
-case class HelloMessage(msg: String) extends Message
-
-class Actor{
-
-}
+    sealed trait Message
+    case class HelloMessage(msg: String) extends Message
+    
+    class Actor{
+    
+    }
 ```
 
 {% highlight ruby %}
@@ -42,7 +40,7 @@ case class HelloMessage(msg: String) extends Message
 class Actor{
 
 }
-{% highlight ruby %}
+{% endhighlight %}
 
 
 ### No BlankSpace
