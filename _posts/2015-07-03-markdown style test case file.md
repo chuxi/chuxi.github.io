@@ -26,7 +26,7 @@ class HelloWorld {
 
 ------
 
-```
+```scala
 sealed trait Message
 case class HelloMessage(msg: String) extends Message case class HelloMessage(msg: String) extends Message case class HelloMessage(msg: String) extends Message case class HelloMessage(msg: String) extends Message
 

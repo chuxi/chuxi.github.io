@@ -8,8 +8,8 @@ url: "http:chuxi.github.io" # the base hostname & protocol for your site
 github_username:  chuxi
 
 # Build settings
-markdown: kramdown
-kramdown:
-  input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
-
-highlighter: pygments
+#markdown: kramdown
+#kramdown:
+#  input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
+#
+#highlighter: pygments
