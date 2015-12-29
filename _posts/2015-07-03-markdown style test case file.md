@@ -28,12 +28,22 @@ class HelloWorld {
 
 ```
 sealed trait Message
-case class HelloMessage(msg: String) extends Message case class HelloMessage(msg: String) extends Message case class HelloMessage(msg: String) extends Message case class HelloMessage(msg: String) extends Message
+case class HelloMessage(msg: String) extends Message
 
 class Actor{
 
 }
 ```
+
+{% highlight ruby %}
+sealed trait Message
+case class HelloMessage(msg: String) extends Message
+
+class Actor{
+
+}
+{% highlight ruby %}
+
 
 ### No BlankSpace
 
