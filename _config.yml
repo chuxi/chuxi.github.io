@@ -12,8 +12,8 @@ markdown: kramdown
 kramdown:
   input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
 #  syntax_highlighter: rouge
+  enable_coderay: true
 
-#gems:      [jekyll-paginate]
-
+gems:      [jekyll-paginate]
 # pagination settings
-#paginate: 20
+paginate: 20
