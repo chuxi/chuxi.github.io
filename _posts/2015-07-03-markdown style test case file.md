@@ -2,6 +2,7 @@
 layout: post
 title: markdown style test cases
 date: 2015-07-03
+published: false
 categories: markdown
 ---
 
@@ -22,15 +23,17 @@ class HelloWorld {
 }
 ```
 
-------
+
 
 ```
-    sealed trait Message
-    case class HelloMessage(msg: String) extends Message
-    
-    class Actor{
-    
-    }
+
+sealed trait Message
+case class HelloMessage(msg: String) extends Message
+
+class Actor{
+
+}
+
 ```
 
 {% highlight ruby %}
@@ -41,6 +44,17 @@ class Actor{
 
 }
 {% endhighlight %}
+
+---
+```scala
+    sealed trait Message
+    case class HelloMessage(msg: String) extends Message
+    
+    class Actor{
+    
+    }
+```
+---
 
 
 ### No BlankSpace

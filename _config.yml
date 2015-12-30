@@ -9,7 +9,10 @@ github_username:  chuxi
 
 # Build settings
 #markdown: kramdown
-#kramdown:
-#  input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
-#
-#highlighter: pygments
+kramdown:
+  input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
+
+gems:      [jekyll-paginate]
+
+# pagination settings
+paginate: 2

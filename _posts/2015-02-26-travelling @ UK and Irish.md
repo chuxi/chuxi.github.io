@@ -3,7 +3,7 @@ layout: post
 title: 旅行在UK\&Irish
 date: 2015-02-26
 published: false
-categories: 游记
+categories: essay
 ---
 
 该是早做准备的，因为两年前当我离开爱尔兰的时候我就对自己说，我会回来的。

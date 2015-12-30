@@ -41,22 +41,20 @@ Fabric Tutorial : [http://docs.fabfile.org](http://docs.fabfile.org)
 
 4. One of the most important thing is to set up your sub-clusters of each role in env.roledefs. You can change some settings here.
 
-```
-    env.roledefs = {
-        'cluster': clusters,
-        'hadoop_master': clusters[:1],
-        'hadoop_smaster': clusters[1:2],
-        'hadoop_slaves': clusters,
-        'zookeeper': clusters[1:],
-        'hbase': clusters,
-        'hbase_master': clusters[1:2],
-        'hbase_slaves': clusters,
-        'kafka': clusters[2:],
-        'spark': clusters,
-        'spark_master': clusters[2:3],
-        'spark_slaves': clusters
-    }
-```
+        env.roledefs = {
+            'cluster': clusters,
+            'hadoop_master': clusters[:1],
+            'hadoop_smaster': clusters[1:2],
+            'hadoop_slaves': clusters,
+            'zookeeper': clusters[1:],
+            'hbase': clusters,
+            'hbase_master': clusters[1:2],
+            'hbase_slaves': clusters,
+            'kafka': clusters[2:],
+            'spark': clusters,
+            'spark_master': clusters[2:3],
+            'spark_slaves': clusters
+        }
 
 5. Set your new user's name, group, password. I believe it is reasonable to use one user for the cluster's every working module.
 
@@ -70,31 +68,27 @@ Fabric Tutorial : [http://docs.fabfile.org](http://docs.fabfile.org)
 
 I record some words about the usage of my program. It is very easy if you understand the fabric principles.
 
-        fab -f fabcluster.py installs
+    fab installs
 
 The command upside will run the whole installation. It starts from basic settings, including hosts, new user, ssh no passwords, disable Firewall, set NTP. Then completes JDK installation, Hadoop, Zookeeper, HBase, Kafka, Spark.
 
-        fab -f fabcluster.py installs:hbase
+    fab installs:hbase
 
 It will install HBase, including all basic installations, and Hadoop, Zookeeper. Because HBase is running on HDFS and Zookeeper.
 
-        fab -f fabcluster.py installs:kafka
-        fab -f fabcluster.py installs:spark
+    fab installs:kafka
+    fab installs:spark
 
 This two just install singular kafka and spark.
 
-
 And I set up some interfaces about starts, stops and cleans work.
 
-```
-        fab -f fabcluster.py starts
-        fab -f fabcluster.py starts:hadoop
-        fab -f fabcluster.py starts:hbase
-
-        fab -f fabcluster.py stops
-
-        fab -f fabcluster.py cleans
-```
+    fab starts
+    fab starts:hadoop
+    fab starts:hbase
+    
+    fab stops
+    fab cleans
 
 In fact, I think you will write your own deploy program. May my program helps.
 

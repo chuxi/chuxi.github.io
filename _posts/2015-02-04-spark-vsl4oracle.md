@@ -23,32 +23,40 @@ DStream, It has been detailed introduced on the spark streaming website, a wrapp
 
 I started my KafkaMsgConsumer.scala from some parameters setting. I need zookeeper cluster info for kafka connection, kafka groups, topics and threads, and oracle connection information. At last, I also set the log level by the following codes(It is found by my colleague who is reading spark source code, not introduced in the programming guide).
 
+```scala
     val pro = new Properties()
     pro.put("log4j.rootLogger", "ERROR, console")
     PropertyConfigurator.configure(pro)
+```
 
 Then you must set spark streaming and spark sql under the same spark context, because one JVM only could contain one spark context.
 
+```scala
     val sparkConf = new SparkConf().setAppName("MsgConsumer")
     val sc = new SparkContext(sparkConf)
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
     val ssc = new StreamingContext(sc, Seconds(2))
+```
 
 Following we start receiving data(RDDs) from kafka interface.
 
+```scala
     val topicpMap = topics.split(",").map((_, numThreads.toInt)).toMap
     val lines = KafkaUtils.createStream(ssc, zkQuorum, group, topicpMap).map(_._2)
+```
 
 There are some changes after I got messages from kafka. I want to group messages by some chars in it. DStream allows you do transformations and requires one output operation on it. You must keep the data in RDD format if you want to continue processing data by spark sql, which leads you can not use groupby to reconstruct RDD.
 
 Finally I choose to filter the DStream several times to "cut" the DStream into several parts.
 
+```scala
     lines.foreachRDD { rdd =>
         // operate FTVD7D message
         process(MsgFTVD7D(MsgOracleHelper(connpro)), rdd.filter(s => s.substring(3, 9).equals("FTVD7D")))
         // operate VDL24H message
         process(MsgVDL24H(MsgOracleHelper(connpro)), rdd.filter(s => s.substring(3, 9).equals("VDL24H")))
     }
+```
 
 I did not find any other solution in spark community. RDD is already divided into partitions.
 
@@ -85,6 +93,7 @@ Then step 3 \& 4 connected the extraction with storage. At last do storage in St
 
 Following is the demo message configuration file I designed for.
 
+```json
     [
       {
         "records" : ["00", "10"],
@@ -128,20 +137,25 @@ Following is the demo message configuration file I designed for.
         ]
       }
     ]
+```
 
 All the work I have done, aims for the JSON MOJO Mapper. So I do not need any JsonNode. I create two case class to map the configuration file json structure.
 
+```scala
     // configuration file json Mapper
     case class MsgConfCase(var value: Int, var sql: String, var vs: Array[Int])
     case class MsgConf(var records: Array[String], var cells: Array[Int], var factors: Array[Int], var cases: Array[MsgConfCase])
+```
 
 And the configuration file loading could be very easy.
 
+```scala
     val root = {
       val mp = new ObjectMapper
       mp.registerModule(DefaultScalaModule)
       mp.readValue(getClass.getResourceAsStream(f), classOf[Array[MsgConf]])
     }
+```
 
 ---
 
@@ -149,6 +163,7 @@ And the configuration file loading could be very easy.
 
 It is up to the count of messages whether applying spark sql or not. To thousands of messages in a RDD, it is efficient and easy to apply spark sql. However, if there are only several, directly processing messages is better.
 
+```scala
     def process(msgtype: MsgCommon, rdd: RDD[String]): Unit = {
       if (rdd.count() != 0) {
         msgtype.root.foreach { mc =>
@@ -158,13 +173,9 @@ It is up to the count of messages whether applying spark sql or not. To thousand
           // generate Schema
           val schema = StructType(Range(0, tRDD.first().length).map("q"+_).map(fieldName => StructField(fieldName, StringType, true)))
           // schema.printTreeString()
-
           val dataRDD = sqlContext.applySchema(tRDD, schema)
-
           dataRDD.registerTempTable(tbname)
-
           val rs = Some(sqlContext.sql("select " + mc.cells.map("q"+_).mkString(",") + s" from $tbname").collect())
-
           rs.get.foreach(println)
           if (rs.isDefined) {
             msgtype.store(rs, mc)
@@ -172,6 +183,7 @@ It is up to the count of messages whether applying spark sql or not. To thousand
         }
       }
     }
+```
 
 I process a message RDD as the configuration file. First, I extract the elements wanted in the RDD. Then make up a schema of the elements in the RDD. Following, I apply the schema to the RDD to make a schemaRDD. So now I can use spark sql to the schemaRDD. Finally, I just need to collect and then store the whole RDD result to database. Because my message is not a json or parquet file. It just contains the data and the protocol is defined outside. I have to choose the applySchema function to implement the spark sql functions. If your message data is different, I think the other method would be better, directly reading data into schemaRDD.
 

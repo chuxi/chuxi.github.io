@@ -13,7 +13,7 @@ categories: spark
 
 ---
 
-#### 解决方案一：
+#### 解决方案一
 
 基于Scala语言编程的前提上，我们利用Slick数据库开发包进行开发，获取数据之后转入Spark schemaRDD。
 
@@ -21,7 +21,7 @@ categories: spark
 
 ---
 
-#### 解决方案二：
+#### 解决方案二
 
 将结构化数据库数据导出后，在Hadoop环境基础上，转入HBase等HDFS文件系统的数据库，或者Hive的数据仓库中，完全支撑Spark访问检索需求。
 
@@ -44,11 +44,12 @@ JdbcRDD对接结构化数据库，利用Spark SQL做数据进一步分析处理�
 近期最新的Spark 1.0.0版本增加了Spark SQL模块（0.9.1里面就已经有了），Spark SQL主要在Spark中实现SQL等语句式的查询方式，针对的数据是一个具体的RDD项，对其中单行的数据项进行检索。而对于传统关系型数据库，Spark SQL缺乏与传统数据库的接口，所以我们无法直接使用Spark SQL来接口结构化数据库。但实际上Spark本身Core中已经配置了对于传统数据库的接口-JdbcRDD，但我也不知道这个类是谁添加的，功能简单有效，设定每一个Partition中的功能为从数据库中自动获取一定范围的数据，也就是只有select功能。而这对于我们来说已经足够了，只要能够获取结构式数据库数据到内存RDD中，我们接下来就能够利用Spark SQL进行一定的筛选操作，从而帮助我们从PT级的结构化数据资料中利用Spark 集群高效快速获取所需信息。
 
 
-### 代码分析：
+### 代码分析
 
 首先盗用张包峰的博客内容基础上，粗略分析JdbcRDD，然后发表下人生感慨，再然后贴上自己写的样例程序，最后吐槽下那些直接看样例程序的水货，不要学我。
 
-```
+```scala
+
     class JdbcRDD[T: ClassTag](
         sc: SparkContext,
         getConnection: () => Connection,
@@ -58,9 +59,7 @@ JdbcRDD对接结构化数据库，利用Spark SQL做数据进一步分析处理�
         numPartitions: Int,
         mapRow: (ResultSet) => T = JdbcRDD.resultSetToObjectArray _)
       extends RDD[T](sc, Nil) with Logging {
-
         ......
-
     }
 
 ```
@@ -95,7 +94,7 @@ JdbcRDD设计方法较为简单，并不考虑Partitions的依赖变换，也不
 
 此处将一个JdbcRDD划分为numPartitions个，其实也就是计算了这个Partition的Index，下界参数，上界参数，最后返回一个JdbcPartition的数组。JdbcPartition则相对简单，继承Partition的基础上除了Partition index参数增加另外两个，主要是为了后续单个JdbcPartition的compute提供参数。
 
-```
+```scala
 
     override def compute(thePart: Partition, context: TaskContext) = new NextIterator[T] {
         context.addOnCompleteCallback{ () => closeIfNeeded() }
@@ -138,10 +137,12 @@ compute()函数的输入参数基本上都是一致的，Partition 用 asInstanc
 
 在此处可以对照下NewHadoopRDD类，里面的compute()函数采用了另外一种Iterator，InterruptibleIterator作为返回类型，参照对比可以进一步了解Spark中的Iterator[T]用法。compute代码本身做过Java数据库编程的可以知道其中内容，整体都没有什么需要特别理解的地方，除了一处mapRow()函数，这个函数是我们传递进来的最后一个参数。
 
-```
+```scala
+
     def resultSetToObjectArray(rs: ResultSet): Array[Object] = {
         Array.tabulate[Object](rs.getMetaData.getColumnCount)(i => rs.getObject(i + 1))
     }
+
 ```
 
 可以看到这个函数的返回值是一个Array[Object]，Array Object中定义了tabulate方法，返回n个function处理后获得的Array，此处n = rs.getMetaData.getColumnCount，function = rs.getObject(i+1)，成功的将ResultSet转换为Array[Object]。
@@ -150,22 +151,19 @@ compute()函数的输入参数基本上都是一致的，Partition 用 asInstanc
 
 而后我粗略的写了一个sample程序，作为JdbcRDD的运用与Spark SQL结合的展示程序。我从MySQL官网下载了employees数据库作为测试数据（employees表有30万行测试数据）。
 
-```
+```scala
+
     case class Employee(id: Int, fname: String, lname: String, hdate: Timestamp)
 
     object JDBCRDD {
-
       def main(args: Array[String]){
         val conf = new SparkConf().setAppName("JdbcRDD").setMaster("local")
         val sc = new SparkContext(conf)
 
-
-
     //    val time1 = System.currentTimeMillis();
-    //
         Class.forName("com.mysql.jdbc.Driver")
         val query = "select * from employees where ? <= emp_no and emp_no <= ?"
-    //
+    
     //    //connection test
     //    val conn=DriverManager.getConnection("jdbc:mysql://localhost/employees", "root", "vlis@zju")
     //    if (conn!= null)
@@ -177,19 +175,14 @@ compute()函数的输入参数基本上都是一致的，Partition 用 asInstanc
     //      select.setLong(1, 1)
     //      select.setLong(2, 500000)
     //      val result = select.executeQuery()
-    //
-    //
     //    }catch {
     //      case e: SQLException if e.getSQLState == "X0Y32" =>
     //      // table exists
     //    } finally {
     //      conn.close()
     //    }
-    //
     //    val time2 = System.currentTimeMillis();
-    //
     //    println(time2  - time1);
-
 
     val Jrdd = new JdbcRDD(
         sc,
@@ -198,29 +191,19 @@ compute()函数的输入参数基本上都是一致的，Partition 用 asInstanc
         1, 500000, 5,
           (r: ResultSet) => {Employee(r.getInt(1), r.getString(3), r.getString(4), r.getTimestamp(6))}
         ).cache()
-
-        //println(rdd.collect()(2)(2))
-
-    //        val time2 = System.currentTimeMillis();
-        //
-    //        println(time2  - time1);
+        // println(rdd.collect()(2)(2))
+        // val time2 = System.currentTimeMillis();
+        // println(time2  - time1);
         val sqlContext = new SQLContext(sc)
-
         import sqlContext._
-
         val Srdd = Jrdd.filter(_.id < 20000)
-
         Srdd.registerAsTable("employees")
-
         sql("SELECT * FROM employees").collect().foreach(println)
-
         sc.stop();
-
         //这样做有什么好处？
-
       }
-
     }
+    
 ```
 
 其中或许需要注意的点是数据库中的SQL语句里的Date数据类型在schemas中并没有对应的定义，需要用Timestamp替代，具体可以查看 package org.apache.spark.sql.catalyst 中的ScalaReflection类，有对应的说明。此处我将返回的RDD数据类型用Case Class Employee替代了Array[Object]，发现也是可以的（此处乱猜写的，谁知道可以说下）。

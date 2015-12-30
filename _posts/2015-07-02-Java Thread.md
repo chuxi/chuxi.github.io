@@ -45,7 +45,6 @@ Java的Thread编程主要涉及到一类和一个库，Thread类和concurrent库
 下例是整合的一些关于Thread类使用的基础样例代码。
 
 ```java
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -99,9 +98,7 @@ public class MyThreadTest {
         singleThread();
         executors();
     }
-
 }
-
 ```
 
 除了上面代码所展示的功能，还有经常用的一些多线程机制：

@@ -11,8 +11,10 @@ Spark SQL是spark1.0.0版本里的新功能，其实对于绝大多数的项目�
 
 arrayofstruct的问题类似这样：
 
+```json
     {"id" :1, "name": "king", "scores":[{"math":90, "phy":80, "che": 88}, {"math":98, "phy":96, "che": 94}, {"math":93, "phy":89, "che": 82}] }
     {"id" :2, "name": "joe", "scores":[{"math":92, "phy":82, "che": 90}, {"math":100, "phy":93, "che": 91}, {"math":90, "phy":86, "che": 79}] }
+```
 
 上面的两行json中的scores（多次考试成绩）就是arrayofstruct。
 
@@ -40,9 +42,8 @@ arrayofstruct的问题类似这样：
 
 首先，你得有个spark源代码IDE环境。Intellij Idea中以Maven或者Sbt两种方式导入spark-master版本源代码（这样一句话带过好像有点不厚道，因为这过程总会出现奇怪的问题）。examples总是跑不起来，直接进入sql-core-src-test-scala-org.apache.spark.sql-json，用JsonSuite开始跟踪调试即可。
 
-```
+```scala
     test("Complex field and type inferring")
-
     checkAnswer(
           sql("select arrayOfString[0], arrayOfString[1], arrayOfString[2] from jsonTable"),
           ("str1", "str2", null) :: Nil
@@ -51,18 +52,18 @@ arrayofstruct的问题类似这样：
 
 在上面的sql语句处设置一个断点。我们可以进入sql语句跟踪。然后接着（要不要先列出所有相关的断点位置？）
 
-```
+```scala
     SqlPaser.scala - phrase
 
     phrase(query)(new lexical.Scanner(input)) match {
             case Success(r, x) => r
             case x => sys.error(x.toString)
-          }
+          } 
 ```
 
 此处最难理解的就是 phrase(query)(new lexical.Scanner(input)),好吧，我一开始也是比较痛苦的想办法理解phrase, lexical, Scanner这些词。实际上这些是scala.util.parsing.combinator包里的文件，是scala语言对于字符串或者其他需要解析的内容的函数库包。需要补充说明的是，对于这个函数库包各个文件的作用，为了便于理解，可以继续在以下两处设置breakpoint。
 
-```
+```scala
     Scanner.scala - new Scanner
 
     def first = tok
@@ -72,7 +73,7 @@ arrayofstruct的问题类似这样：
 
 此处Scanner就像不断往后scan这个输入的字符串，根据Token识别，根据whitespace消除空格。所以我们可以看看Token是如何定义的。此处假设你已经看明白~ ^^ 等符号作用。
 
-```
+```scala
     SqlPaser.scala - case first, case i
 
     override lazy val token: Parser[Token] = (
@@ -93,14 +94,14 @@ arrayofstruct的问题类似这样：
 
 然后回到phrase，这个函数的定义是将传入query的Scanner获得的Token用PackratReader包装，我这个Scala半调子水平也是看了好久才看明白为啥phrase有两个参数传递，因为Scanner作为参数传给了def apply(in: Input)。
 
-```
+```scala
     /**
        *  A parser generator delimiting whole phrases (i.e. programs).
        *
        *  Overridden to make sure any input passed to the argument parser
        *  is wrapped in a `PackratReader`.
        */
-      override def phrase[T](p: Parser[T]) = {
+    override def phrase[T](p: Parser[T]) = {
         val q = super.phrase(p)
         new PackratParser[T] {
           def apply(in: Input) = in match {
@@ -108,14 +109,14 @@ arrayofstruct的问题类似这样：
             case in => q(new PackratReader(in))
           }
         }
-      }
+    }
 ```
 
 所以我们理解了此处的phrase函数，such a smart design.回到外面继续，所以我们知道query逐个Token解析，例如一句sql: "select arrayOfString\[0\], arrayOfString\[1\], arrayOfString\[2\] from jsonTable"，解析为select arrayOfString 0 arrayOfString 1 arrayOfString 2 from jsonTable 一共9个Token。如果是arrayOfStruct\[0\].field，则对应为arrayOfStruct 0 field三个Token。注意此处dot解析只在遇到前面为分界符，也就是dot开头的情况只会是跟随在分界符后才会出现。
 
 如此我们得到一个对sql语句的初步解析-解析为单个Token。后面就是将这些Token解析生成一棵树。关于这棵树长什么样，前面小伙伴博主的另外一篇博客有详细的说明（http://blog.csdn.net/oopsoom/article/details/38084079）。说白了就是二叉树的结构，下面设置一个断点可以查看整棵树的生成过程。
 
-```
+```scala
       SqlPaser - case d ~ p ~ r ~ f ~ g ~ h ~ o ~ l
 
       protected lazy val select: Parser[LogicalPlan] =
@@ -156,7 +157,7 @@ arrayofstruct的问题类似这样：
 
 一棵树我们选择projections作为跟踪对象，发现由repsep(projection, ",")，到projection，发现是expression通过Alias()函数生成，那这个expression就是我们要跟踪的对象，一直找下去就发现会到baseExpression，设置断点。
 
-```
+```scala
     SqlPaser.scala - GetItem(base, ordinal) , ident ^^ UnresolvedAttribute
 
     protected lazy val baseExpression: PackratParser[Expression] =
@@ -179,7 +180,7 @@ arrayofstruct的问题类似这样：
 
 此处我添加了修改，主要解决arrayOfStruct\[0\].field1问题（其实也就是为了项目将就解决下）：
 
-```
+```scala
     expression ~ "[" ~ expression ~ "]" ~ expression ^^ {
               case base ~ _ ~ ordinal ~ _ ~ field => GetArrayOfStructItem(base, ordinal, field)
             } |
@@ -193,20 +194,26 @@ GetItem()是个case class， extends Expression，而且查看GetItem可以看�
 
 那若是遇到struct.field1这样的情况，其并不是返回一个类似GetItem()的Expression，而直接是一个ident，也就是UnresolvedAttribute， 接着看看ident是如何定义的。
 
+```scala
     StdTokenPasers.scala
 
     elem("identifier", _.isInstanceOf[Identifier]) ^^ (_.chars)
+```
 
 也就是该Token是以identifier开头的，跟着Identifier类型。我们查看Identifier并没有什么有效的信息，再查看Token定义生成的地方，在前面SqlLexical中的Token有一处代码
 
+```scala
     case first ~ rest if(first != '.') => processIdent(first :: rest mkString "")
+```
 
 查看processIdent
 
+```scala
     StdLexical.scala
 
     protected def processIdent(name: String) =
         if (reserved contains name) Keyword(name) else Identifier(name)
+```
 
 也就是传入的String不是Keyword的话，就作为一个Identifier。所以struct.field1是一个UnresolvedAttribute，并且没有进入递归。这在后续的LogicalPlan中还会有分析。
 
@@ -222,6 +229,7 @@ GetItem()是个case class， extends Expression，而且查看GetItem可以看�
 
 具体的Analyzer类情况小伙伴博客已经说的比较明白，各种Rule中可以关注下ResolveRelations，ResolveReferences这两种。可以在这个地方设置一个断点，就可以清晰地看到arrayOfString\[0\]是如何进入Rule解析的，也解释了reference值的作用。
 
+```scala
     Analyzer.scala - val result = q.resolveChildren(name)
 
     object ResolveReferences extends Rule[LogicalPlan] {
@@ -238,6 +246,8 @@ GetItem()是个case class， extends Expression，而且查看GetItem可以看�
         }
       }
 
+```
+
 另外，从此处也可以跟踪观察遍历的方式与规则，相当于说，这里就是这棵树分析的一处入口。分析是从不同的Rule，也就是不同的角度去解释这棵树的内容，而ResolveReferences是其中必然存在的一个环节。
 
 ---
@@ -246,8 +256,7 @@ GetItem()是个case class， extends Expression，而且查看GetItem可以看�
 
 上述过程其实都涉及到一个词，叫做resolve，Analyzer的工作就是将Unresolved转为Resolved，所以回到resolve这个函数实现的LogicalPlan类中。
 
-{% highlight scala %}
-
+```scala   
     options.distinct match {
           case Seq((a, Nil)) => Some(a) // One match, no nested fields, use it.
           // One match, but we also need to extract the requested nested field.
@@ -263,9 +272,8 @@ GetItem()是个case class， extends Expression，而且查看GetItem可以看�
           case ambiguousReferences =>
             throw new TreeNodeException(
               this, s"Ambiguous references to $name: ${ambiguousReferences.mkString(",")}")
-        }
-
-{% endhighlight %}
+        }   
+```
 
 这是Wei Li修改的代码，其中对于包含dot.的情况做细分，查看是否为ArrayType，例如arrayOfStruct.field1.就是需要添加判断arrayOfStruct是否为ArrayType。如果是的，则用GetArrayField解析。此处的局限也是很明显的，再深入一层就跪了，也就是arrayOfStruct.field1.arrayOfStruct.field1，想来这也是比较极端的情况范围了，所以不置考虑。
 
