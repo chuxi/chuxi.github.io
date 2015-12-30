@@ -11,8 +11,9 @@ github_username:  chuxi
 #markdown: kramdown
 kramdown:
   input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
+  syntax_highlighter: rouge
 
 gems:      [jekyll-paginate]
 
 # pagination settings
-paginate: 2
+paginate: 20
