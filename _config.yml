@@ -8,11 +8,14 @@ url: "http:chuxi.github.io" # the base hostname & protocol for your site
 github_username:  chuxi
 
 # Build settings
-markdown: kramdown
-kramdown:
-  input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
+markdown: redcarpet
+redcarpet:
+  extensions: [fenced_code_blocks, tables, no_intra_emphasis, autolink]
+
+#kramdown:
+#  input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
 #  syntax_highlighter: rouge
-  enable_coderay: true
+#  enable_coderay: true
 
 gems:      [jekyll-paginate]
 # pagination settings
