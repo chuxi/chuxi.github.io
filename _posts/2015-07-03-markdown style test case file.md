@@ -2,7 +2,7 @@
 layout: post
 title: markdown style test cases
 date: 2015-07-03
-published: false
+<!--published: false-->
 categories: markdown
 ---
 

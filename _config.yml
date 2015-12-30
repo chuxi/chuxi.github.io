@@ -13,7 +13,7 @@ kramdown:
   input: GFM # Enable GitHub Flavored Markdown (fenced code blocks)
 #  syntax_highlighter: rouge
 
-highlighter: rouge
+highlighter: pygments
 
 gems:      [jekyll-paginate]
 
