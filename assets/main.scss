@@ -8,6 +8,7 @@
 // Our variables
 $base-font-family: Helvetica, Arial, sans-serif;
 $base-font-size:   15px;
+$base-font-weight: 400 !default;
 $small-font-size:  $base-font-size * 0.875;
 $base-line-height: 2.0;
 
@@ -21,6 +22,8 @@ $brand-color:      #2a7ae2;
 $grey-color:       #828282;
 $grey-color-light: lighten($grey-color, 40%);
 $grey-color-dark:  darken($grey-color, 25%);
+$orange-color:     #f66a0a !default;
+$table-text-align: left !default;
 
 // Width of the content area
 $content-width:    900px;
@@ -28,6 +31,8 @@ $content-width:    900px;
 $on-palm:          600px;
 $on-laptop:        800px;
 
+$on-medium:        $on-palm !default;
+$on-large:         $on-laptop !default;
 
 
 // Using media queries with like this:
@@ -43,6 +48,9 @@ $on-laptop:        800px;
     }
 }
 
+@mixin relative-font-size($ratio) {
+  font-size: $base-font-size * $ratio;
+}
 
 
 // Import partials from `sass_dir` (defaults to `_sass`)
