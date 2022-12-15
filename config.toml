@@ -2,7 +2,7 @@
 base_url = "https://chuxi.github.io"
 
 title = "Hanwei's Daily Posts"
-description = "a lazy engineer's daily retired work"
+description = "a lazy engineer's retired daily"
 
 # Whether to automatically compile all Sass files in the sass directory
 compile_sass = true
@@ -35,6 +35,7 @@ favicon = "/icon/favicon.jpeg"
 copyright = "hanwei"
 
 #ga = "G-6YGDB8SLBT"
+cf = "a2ea65bd409f4a6d980c46cde3dc09c2"
 
 [extra.translations]
 languages = [{name = "en", url = "/"}]
