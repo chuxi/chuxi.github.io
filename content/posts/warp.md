@@ -67,7 +67,7 @@ which helps set up the whole network with one command easily.
 For the server, it's better not to influence our common network. So we can set up non-global
 interface and route rules. 
 
-```shell
+```bash
 ./warp.sh wgx # Set_WARP_DualStack_nonGlobal
 ```
 
@@ -81,7 +81,7 @@ the `rule`. Because the new created interface `wgcf` would handle all network de
 data packages, we could not connect to the VPS anymore, if we did not configure the VPS public IP for the
 `wgcf` interface. If we failed to connect you VPS, we need to log in from the web VNC mode. 
 
-```shell
+```bash
 ./warp.sh wgd # Set_WARP_DualStack
 ```
 
