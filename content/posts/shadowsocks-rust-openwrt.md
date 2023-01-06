@@ -111,7 +111,7 @@ sslocal -c shadowsocks.json -d --daemonize-pid ss.pid --acl shadowsocks.acl --ou
 {
   "locals": [
     {
-      "local_address": "::",
+      "local_address": "0.0.0.0",
       "local_port": 60080,
       "protocol": "redir",
       "tcp_redir": "tproxy",
@@ -281,6 +281,8 @@ iptables -t mangle -A OUTPUT -p tcp -j shadowsocks-tproxy-mark
 2. `IPV4_RESERVED_IPADDRS` 是本地网关以及局域网配置地址，当目标地址是这个范围时，直接返回，避免转发到`redir`上
 3. `shadowsocks-tproxy-mark -m mark --mark 0xff/0xff -j RETURN`这句配置十分重要，配合前面设置的`fwmark`，
 能将`sslocal`产生的数据避免回传到`PREROUTING`链上，被重新路由。如果不配置，最直接的就是路由器内存耗尽。
+4. 注意如果需要支持ipv6，那需要设置两套tproxy，且ipv4与ipv6的redir采用不同的端口号，例如60081，具体参考官方的
+`iptables_tproxy.sh`文件，此处仅做参考
 
 针对以上配置命令说明可以参考其他的文档，可以先熟悉`netfilter`运行方式，再理解`iptables`设计逻辑，
 否则很容易绕晕在其中。
