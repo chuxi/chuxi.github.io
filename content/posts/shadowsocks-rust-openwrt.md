@@ -119,12 +119,20 @@ sslocal -c shadowsocks.json -d --daemonize-pid ss.pid --acl shadowsocks.acl --ou
     },
     {
       "local_address": "::",
+      "local_port": 60081,
+      "protocol": "redir",
+      "tcp_redir": "tproxy",
+      "udp_redir": "tproxy"
+    },
+    {
+      "local_address": "::",
       "local_port": 53,
       "protocol": "dns",
       "local_dns_address": "114.114.114.114",
       "local_dns_port": 53,
       "remote_dns_address": "1.1.1.1",
-      "remote_dns_port": 53
+      "remote_dns_port": 53,
+      "mode": "tcp_only"
     }
   ],
 
@@ -172,6 +180,8 @@ sslocal -c shadowsocks.json -d --daemonize-pid ss.pid --acl shadowsocks.acl --ou
 5. `log.config_path`的配置文件[log4rs.yml](https://github.com/shadowsocks/shadowsocks-rust/blob/master/configs/log4rs.yaml)
 6. `runtime.worker_count`，根据处理器最大线程数量-1配置
 7. `local_address`如果绑定失败，可以使用`0.0.0.0`替换，避免启动ipv6
+8. `dns`服务的`mode`指定`tcp_only`，更加稳定
+9. 下游的其他普通路由器内，找到上网设置，dns服务器，手动设置为当前`lan`口的地址（例如`192.168.2.1`），否则可能出现`dns异常`。
 
 `dns`的udp数据包会由系统本身转发到本地的53端口处理，如果没有检查`/etc/resolv.conf`内配置。
 OpenWRT默认使用`dnsmasq`代理解析域名，即`53`端口已经被占用，所以`sslocal`启动时可能退出。
@@ -275,7 +285,7 @@ iptables -t mangle -A OUTPUT -p udp -j shadowsocks-tproxy-mark
 iptables -t mangle -A OUTPUT -p tcp -j shadowsocks-tproxy-mark
 ```
 
-1.chnip文件是中国大陆ipv4地址库，可以由[genipset.py](https://github.com/shadowsocks/shadowsocks-rust/blob/master/configs/genipset.py)
+1. chnip文件是中国大陆ipv4地址库，可以由[genipset.py](https://github.com/shadowsocks/shadowsocks-rust/blob/master/configs/genipset.py)
 脚本生成，通过该方式，绝大多数国内`ip`均不会走代理，而是直接路由器转发到上层，虽然`redir`已经支持`ACL`，
 配置大多数ip地址，但在内核路由层面提前转发，能提高效率
 2. `IPV4_RESERVED_IPADDRS` 是本地网关以及局域网配置地址，当目标地址是这个范围时，直接返回，避免转发到`redir`上
