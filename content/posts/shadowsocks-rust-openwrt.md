@@ -180,7 +180,7 @@ sslocal -c shadowsocks.json -d --daemonize-pid ss.pid --acl shadowsocks.acl --ou
 5. `log.config_path`的配置文件[log4rs.yml](https://github.com/shadowsocks/shadowsocks-rust/blob/master/configs/log4rs.yaml)
 6. `runtime.worker_count`，根据处理器最大线程数量-1配置
 7. `local_address`如果绑定失败，可以使用`0.0.0.0`替换，避免启动ipv6
-8. `dns`服务的`mode`指定`tcp_only`，更加稳定
+8. `dns`服务的`mode`指定`tcp_only`，更加稳定，`redir`也是同理，默认只使用`tcp`
 9. 下游的其他普通路由器内，找到上网设置，dns服务器，手动设置为当前`lan`口的地址（例如`192.168.2.1`），否则可能出现`dns异常`。
 
 `dns`的udp数据包会由系统本身转发到本地的53端口处理，如果没有检查`/etc/resolv.conf`内配置。
@@ -306,6 +306,14 @@ iptables -t mangle -A OUTPUT -p tcp -j shadowsocks-tproxy-mark
 尤其是第二个配置，`net.bridge.bridge-nf-call-iptables=1`或者`net.bridge.bridge-nf-call-ip6tables=0`
 会导致数据在流过`PREROUTING`后，转向`FORWARD`，而正确的情况应该是转入`INPUT`链表，最后进入代理应用程序。
 具体这也是个2009年的旧[bug](https://bugzilla.redhat.com/show_bug.cgi?id=512206)。
+
+此外，可以执行`netstat -anptu | grep sslocal`，若是打开的连接数量过多，可能导致无法创建新的连接，
+或者上网卡顿，此时可以修改以下参数
+1. `/etc/sysctl.d/31-optmize-proxy.conf`内配置`net.ipv4.tcp_fin_timeout = 5`
+2. `/etc/sysctl.d/31-optmize-proxy.conf`内配置`net.ipv4.tcp_keepalive_time = 15`
+
+原有参数关闭`tcp`连接较慢，产生大量连接后无法及时释放文件，导致路由器卡顿。
+`/etc/sysctl.d/10-default.conf`内也有该配置参数，可以一并修改，修改配置之后重启生效即可
 
 ## 关于shadowsock-rust.ipk
 
