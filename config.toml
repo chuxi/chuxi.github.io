@@ -1,8 +1,8 @@
 # The URL the site will be built for
 base_url = "https://chuxi.github.io"
 
-title = "Hanwei's Daily Posts"
-description = "a lazy engineer's retired daily"
+title = "Chuxi's Daily Posts"
+description = "a lazy engineer's daily"
 
 # Whether to automatically compile all Sass files in the sass directory
 compile_sass = true
@@ -32,7 +32,7 @@ useCDN = false
 
 favicon = "/icon/favicon.jpeg"
 
-copyright = "hanwei"
+copyright = "chuxi"
 
 #ga = "G-6YGDB8SLBT"
 cf = "a2ea65bd409f4a6d980c46cde3dc09c2"
@@ -66,7 +66,3 @@ icon = "twitter"
 name = "Twitter"
 url = "https://twitter.com/chuxiking"
 
-[[extra.social]]
-icon = "send"
-name = "Telegram"
-url = "https://telegram.me/jinhanwei"
