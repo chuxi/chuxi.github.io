@@ -9,77 +9,49 @@ tags = [ "network", "proxy" ]
 
 +++
 
-If we want to connect to (netflix)[https://netflix.com] through VPN or proxy on some VPS,
-we may be detected and blocked the access. So we need (WARP)[https://1.1.1.1] to hide the
-actual VPS IP from netflix detection. We are sorry for such an illegal means, but we will pay
-the membership money.
+If we want to connect to (netflix)[https://netflix.com] through VPN or proxy on some VPS, we may be detected and blocked the access. So we need (WARP)[https://1.1.1.1] to hide the actual VPS IP from netflix detection. We are sorry for such an illegal means, but we will pay the membership money.
 
 
 ## WARP
 
-How to hide your actual IP from the target website? Thanks to the cloudflare service
-(WARP), we can easily implement it. 
+How to hide your actual IP from the target website? Thanks to the cloudflare service(WARP), we can easily implement it. 
 
-WARP is a service based on (WireGuard)[https://www.wireguard.com], which supplies
-the tunnel connected to a cluster of distributed network nodes. The distributed cluster
-is hosted by (Cloudflare)[https://1.1.1.1/]. 
+WARP is a service based on (WireGuard)[https://www.wireguard.com], which supplies the tunnel connected to a cluster of distributed network nodes. The distributed cluster is hosted by (Cloudflare)[https://1.1.1.1/]. 
 
 ![network-flow](/imgs/WARP.png)
 
-The solution is the same as we find a native server to help reach the netflix content,
-then the native server forwards all data back to VPS. If we had such a primitive server
-whose IP is not blocked by netflix, then we do not need the `WARP`.
+The solution is the same as we find a native server to help reach the netflix content, then the native server forwards all data back to VPS. If we had such a primitive server whose IP is not blocked by netflix, then we do not need the `WARP`.
 
 ## WireGuard
 
-(WireGuard)[https://www.wireguard.com] helps build a tunnel proxy to hide your actual ip
-from the target websites. So it is useful for accessing netflix, if you are running
-shadowsocks server on VPS(virtual private servers). Netflix is blocking the IPs from 
-some cloud computing companies. Most VPNs, Socks5 Proxies are built on the VPS. So commonly,
-we can not watch netflix directly even we already have some normal or cheap VPNs. 
+(WireGuard)[https://www.wireguard.com] helps build a tunnel proxy to hide your actual ip from the target websites. So it is useful for accessing netflix, if you are running shadowsocks server on VPS(virtual private servers). Netflix is blocking the IPs from some cloud computing companies. Most VPNs, Socks5 Proxies are built on the VPS. So commonly, we can not watch netflix directly even we already have some normal or cheap VPNs. 
 
-WireGuard will set up an interface locally. It has high performance to transfer your
-network data to remote server. And with asymmetric encryption algorithm, a pair of public key
-and private key, the whole process is very secure. 
+WireGuard will set up an interface locally. It has high performance to transfer your network data to remote server. And with asymmetric encryption algorithm, a pair of public key and private key, the whole process is very secure. 
 
-So it requires a lot of wireguard servers, to accept the wireguard clients' connection.
-However, we can not use another VPS as server, whose IP is also blocked by the target,
-netflix, etc.
+So it requires a lot of wireguard servers, to accept the wireguard clients' connection. However, we can not use another VPS as server, whose IP is also blocked by the target, netflix, etc.
 
 
 ## Cloudflare
 
-Cloudflare offers the service `WARP`, which currently is free, by utilizing the cloudflare
-cloud network servers around world. 
+Cloudflare offers the service `WARP`, which currently is free, by utilizing the cloudflare cloud network servers around world. 
 
-Officially, Cloudflare only supplies clients for different platforms. By the clients, we can
-use WARP directly on local device. If we want to use the `WARP` on VPS, we need to use the
-third party tool (wgcf)[https://github.com/ViRb3/wgcf]. 
+Officially, Cloudflare only supplies clients for different platforms. By the clients, we can use WARP directly on local device. If we want to use the `WARP` on VPS, we need to use the third party tool (wgcf)[https://github.com/ViRb3/wgcf]. 
 
-We need to generate an account and profile for accessing the cloudflare servers. The tool `wgcf`
-helps execute the commands as official clients.
+We need to generate an account and profile for accessing the cloudflare servers. The tool `wgcf` helps execute the commands as official clients.
 
 ## Warp.sh
 
-We can use another script tool (warp.sh)[https://github.com/P3TERX/warp.sh],
-which helps set up the whole network with one command easily. 
+We can use another script tool (warp.sh)[https://github.com/P3TERX/warp.sh], which helps set up the whole network with one command easily. 
 
-For the server, it's better not to influence our common network. So we can set up non-global
-interface and route rules. 
+For the server, it's better not to influence our common network. So we can set up non-global interface and route rules. 
 
 ```bash
 ./warp.sh wgx # Set_WARP_DualStack_nonGlobal
 ```
 
-The shell command will start wireguard service backend. And we need to restart our proxy service to
-bind the local interface to `wgcf`, which we created in the shell. For `shadowsocks`, please add 
-`--out-bound-interface wgcf` to start `ssserver`.
+The shell command will start wireguard service backend. And we need to restart our proxy service to bind the local interface to `wgcf`, which we created in the shell. For `shadowsocks`, please add `--outbound-fwmark 51888` to start `ssserver`.
 
-if we want to use the `WARP` interface directly, we can set the interface to outbound all network packages.
-We may be confused with the concepts about `interface`, `route` and `rule`. It's important to understand
-the `rule`. Because the new created interface `wgcf` would handle all network device in-and-out
-data packages, we could not connect to the VPS anymore, if we did not configure the VPS public IP for the
-`wgcf` interface. If we failed to connect you VPS, we need to log in from the web VNC mode. 
+if we want to use the `WARP` interface directly, we can set the interface to outbound all network packages. We may be confused with the concepts about `interface`, `route` and `rule`. It's important to understand the `rule`. Because the new created interface `wgcf` would handle all network device in-and-out data packages, we could not connect to the VPS anymore, if we did not configure the VPS public IP for the `wgcf` interface. If we failed to connect you VPS, we need to log in from the web VNC mode. 
 
 ```bash
 ./warp.sh wgd # Set_WARP_DualStack
@@ -119,20 +91,15 @@ AllowedIPs = 0.0.0.0/0,::/0
 Endpoint = 162.159.192.1:2408
 ```
 
-`MTU` should not exceed the max supported size, `Endpoint` must be replaced with the specific IP, or failed.
-`PostUp` and `PostDown` will update server network `route` and `rule`
+`MTU` should not exceed the max supported size, `Endpoint` must be replaced with the specific IP, or failed. `PostUp` and `PostDown` will update server network `route` and `rule`
 
 ## Finally
 
-It is a great product for `WARP` and `Wireguard`. It securely protects our trails to network.
-Emmmm... sounds like that we are planning something evil to the world. But it frees the people from
-restricted and audited network in some area. However, we need some free servers to make it usable.
-It's much simpler than traditional VPNs. And we can make our network more secure. 
+It is a great product for `WARP` and `Wireguard`. It securely protects our trails to network. Emmmm... sounds like that we are planning something evil to the world. But it frees the people from restricted and audited network in some area. However, we need some free servers to make it usable. It's much simpler than traditional VPNs. And we can make our network more secure. 
 
 Besides, it's sorry to bypass the netflix service check with so illegal means.
 
-At last, we should never believe free service. So `WARP`, after several days trial, we noticed the allocated
-WARP IP is recognized as a malicious bot visit to the website. Emmmmm... maybe we should pay for `WARP+`.
+At last, we should never believe free service. So `WARP`, after several days trial, we noticed the allocated WARP IP is recognized as a malicious bot visit to the website. Emmmmm... maybe we should pay for `WARP+`.
 
 ## reference
 

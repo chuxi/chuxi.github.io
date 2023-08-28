@@ -28,7 +28,7 @@ tags = [ "network", "shadowsocks", "rust" ]
 
 另外一个需求是能够运行`Shadowsocks-Rust`，`Rust`本身的跨平台编译是支持嵌入式设备开发的，所以只需要能够运行openwrt， 以及硬件设备的CPU指令集不是特别离谱，就应该能编译，所以看`R2C-Plus`采用`ARM64`架构，也就不会有太大的问题。
 
-在通电之后，根据[R2C-Plus wiki文档](https://wiki.friendlyelec.com/wiki/index.php/NanoPi_R2C_Plus/zh)， 稍稍熟悉之后，便能够开始完成一些基础的配置操作。本来买个路由器，有一些预装的功能服务，但如果个人没什么必要的话也是可以 直接删除，避免占用路由器硬件资源。
+在通电之后，根据[R2C-Plus wiki文档](https://wiki.friendlyelec.com/wiki/index.php/NanoPi_R2C_Plus/zh)， 稍稍熟悉之后，便能够开始完成一些基础的配置操作。本来买个路由器，有一些预装的功能服务，但如果个人没什么必要的话也是可以直接删除，避免占用路由器硬件资源。
 
 整个过程可以分为：
 1. 编译shadowsocks-rust `-target aarch64-unknown-linux-musl -features local-redir,local-dns`
