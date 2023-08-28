@@ -12,6 +12,7 @@ tags = [ "network", "shadowsocks", "rust" ]
 
 - update 2023-07-31, 优化shadowsocks-dns使用，配置nftables tproxy
 - update 2023-08-01, 优化透明代理配置
+- update 2023-08-28, 路由器代理配置基本完善，解决warp无法使用ipv6问题
 
 在十年前便研究过嵌入式设备上运行最小化linux系统OpenWRT，当时还是在学校跟随老师上《嵌入式原理》课程，拿着`TP-Link WR`系列的mini路由器刷OpenWRT系统，当时也就是对计算机硬件略微了解，只是一个普普通通使用者。
 
