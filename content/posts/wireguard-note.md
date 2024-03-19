@@ -22,8 +22,9 @@ Here is my personal configuration for server and client wireguard interface.
 
 ### Wireguard Server Config 
 
-```shell
-# cat /etc/wireguard/wg0.conf 
+```bash
+cat /etc/wireguard/wg0.conf 
+
 [Interface]
 Address = 10.18.0.1/24
 Address = fd3b:bd46:db84::1/64
@@ -52,8 +53,9 @@ AllowedIPs = 10.18.0.2/32, fd3b:bd46:db84::2/128
 
 ### Wireguard Client Config
 
-```shell
-# cat /etc/wireguard/wg0.conf 
+```bash
+cat /etc/wireguard/wg0.conf 
+
 [Interface]
 PrivateKey = xxxxxxxx
 Address = 10.18.0.2/24
@@ -100,7 +102,7 @@ To resolve the problem, We should set `Table = Off`, it will disable the autocon
 
 #### Check the routes and rules work correctly
 
-```shell
+```bash
 # ip route get 1.1.1.1 from 10.18.0.2
 1.1.1.1 from 10.18.0.2 dev wg0 table 618 mark 0x6c uid 0 
     cache 
@@ -114,11 +116,11 @@ To resolve the problem, We should set `Table = Off`, it will disable the autocon
 
 [Wireguard Kernel Debug Info](https://www.wireguard.com/quickstart/#debug-info)
 
-```shell
+```bash
 modprobe wireguard && echo module wireguard +p > /sys/kernel/debug/dynamic_debug/control
 ```
 
-```shell
+```bash
 # get the kernel debug info
 dmesg -W
 ```
