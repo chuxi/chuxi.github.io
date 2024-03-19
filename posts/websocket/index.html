@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    
+    <title>
+         Rust: websocket with proxy
+        
+    </title>
+    
+
+    
+         <link rel="icon" type="image/png" href=&#x2F;icon&#x2F;favicon.jpeg />
+    
+
+    
+
+    
+
+    
+        <!-- Cloudflare Web Analytics -->
+        <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+                data-cf-beacon='{"token": "a2ea65bd409f4a6d980c46cde3dc09c2"}'>
+        </script><!-- End Cloudflare Web Analytics -->
+    
+
+    
+    
+        <script src=https://chuxi.github.io/js/feather.min.js></script>
+    
+
+
+    
+        <link href=https://chuxi.github.io/css/fonts.css rel="stylesheet" />
+    
+
+    <link rel="stylesheet" type="text/css" media="screen" href=https://chuxi.github.io/css/main.css />
+
+    
+
+    <meta name="robots" content="index, follow">
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    
+        <meta name="description" content="The article shows how to set up proxy on websocket stream, with tokio-tungstenite library">
+    
+    
+
+
+</head>
+
+
+<body>
+    <div class="content">
+        <header>
+    <div class="main" id="main_title">
+        <a href=https:&#x2F;&#x2F;chuxi.github.io>Chuxi&#x27;s Daily Posts</a>
+    </div>
+
+    <nav>
+        
+            <a href=&#x2F;>Home</a>
+        
+            <a href=&#x2F;posts>All posts</a>
+        
+            <a href=&#x2F;about>About</a>
+        
+            <a href=&#x2F;tags>Tags</a>
+        
+
+        
+            |
+
+            
+                <a href=&#x2F;>en</a>
+            
+        
+
+        
+    </nav>
+</header>
+
+
+        
+    
+<main>
+    <article>
+        <div class="title">
+            <h1 class="title">Rust: websocket with proxy</h1>
+            <div class="meta">
+                
+                on  2022-12-15
+
+                
+            </div>
+        </div>
+
+        
+
+        <section class="body">
+            <h2 id="websocket">websocket</h2>
+<p>For rust websocket library <a href="https://github.com/snapview/tokio-tungstenite">tokio-tungstenite</a>, 
+it does not support proxy of <code>http[s]</code> and <code>socks4/5</code>.
+Instead, it opens the interface of accepting a proxied TCP stream. So users can quickly set up a proxy
+websocket.</p>
+<p>In the article, It looks into the proxy implementation in another rust http library 
+<a href="https://github.com/seanmonstar/reqwest">reqwest</a>. With
+the reference of design, we can easily understand how the proxy works in http.</p>
+<p>Another important rust library is <a href="https://github.com/tokio-rs/tokio">tokio</a>, it offers <code>runtime</code> engine,
+for executing tasks in async/await mode. It has an
+<a href="https://rust-lang.github.io/async-book/01_getting_started/02_why_async.html">async-book</a>, 
+which explains the async stream design in rust and <code>futures-rs</code> library.</p>
+<p>The last knowledge we need to understand is proxy protocols. In addition to standard
+<code>http[s]</code> and <code>socks4/5</code> protocols, it has some other similar network protocols, such as <code>tor</code>, etc.
+All protocols are running on the TCP layer in network, by sending protocol-organized bytes in stream header.
+The proxy server will transfer all data to the target automatically.</p>
+<h2 id="innerproxy">InnerProxy</h2>
+<p>Let's define a proxy struct, <code>InnerProxy</code>. It parses the proxy configuration, 
+and build the Tcp Connection to Proxy.
+To support multiple proxy protocols, we use <code>enum</code> to distinguish each.
+The <code>Tls</code> layer is already supported by <code>tokio-tungstenite</code>. After we build the Tcp stream to proxy server,
+the Tcp stream will be connected by a <code>Tls</code> stream from application side. </p>
+<pre data-lang="rust" style="background-color:#fafafa;color:#383a42;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#a626a4;">enum </span><span>InnerProxy {
+</span><span>    </span><span style="color:#a0a1a7;">// http or https
+</span><span>    Http {
+</span><span>        auth: Option&lt;Vec&lt;</span><span style="color:#a626a4;">u8</span><span>&gt;&gt;,
+</span><span>        url: String,
+</span><span>    },
+</span><span>    </span><span style="color:#a0a1a7;">// socks5
+</span><span>    Socks {
+</span><span>        auth: Option&lt;(String, String)&gt;,
+</span><span>        url: String,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#a626a4;">impl </span><span>InnerProxy {
+</span><span>    </span><span style="color:#a626a4;">fn </span><span style="color:#0184bc;">from_proxy_str</span><span>(</span><span style="color:#e45649;">proxy_str</span><span>: </span><span style="color:#a626a4;">&amp;str</span><span>) -&gt; Result&lt;InnerProxy, Error&gt; {
+</span><span>        </span><span style="color:#a626a4;">use </span><span>url::Position;
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">let</span><span> url </span><span style="color:#a626a4;">= match </span><span>Url::parse(proxy_str) {
+</span><span>            Ok(u) </span><span style="color:#a626a4;">=&gt;</span><span> u,
+</span><span>            Err(e) </span><span style="color:#a626a4;">=&gt; return </span><span>Err(Error::new(
+</span><span>                ErrorKind::InvalidInput, </span><span style="color:#50a14f;">&quot;failed to parse proxy url&quot;</span><span>))
+</span><span>        };
+</span><span>        </span><span style="color:#a626a4;">let</span><span> addr </span><span style="color:#a626a4;">= &amp;</span><span>url[Position::BeforeHost</span><span style="color:#a626a4;">..</span><span>Position::AfterPort];
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">match</span><span> url.</span><span style="color:#0184bc;">scheme</span><span>() {
+</span><span>            </span><span style="color:#50a14f;">&quot;http&quot; </span><span style="color:#a626a4;">| </span><span style="color:#50a14f;">&quot;https&quot; </span><span style="color:#a626a4;">=&gt; </span><span>{
+</span><span>                </span><span style="color:#a626a4;">let mut</span><span> basic_bytes: Option&lt;Vec&lt;</span><span style="color:#a626a4;">u8</span><span>&gt;&gt; </span><span style="color:#a626a4;">= </span><span>None;
+</span><span>                </span><span style="color:#a626a4;">if let </span><span>Some(pwd) </span><span style="color:#a626a4;">=</span><span> url.</span><span style="color:#0184bc;">password</span><span>() {
+</span><span>                    </span><span style="color:#a626a4;">let</span><span> encoded_str </span><span style="color:#a626a4;">= </span><span>format!(</span><span style="color:#50a14f;">&quot;Basic </span><span style="color:#c18401;">{}</span><span style="color:#50a14f;">&quot;</span><span>, base64::encode(</span><span style="color:#a626a4;">&amp;</span><span>format!(</span><span style="color:#50a14f;">&quot;</span><span style="color:#c18401;">{}</span><span style="color:#50a14f;">:</span><span style="color:#c18401;">{}</span><span style="color:#50a14f;">&quot;</span><span>, url.</span><span style="color:#0184bc;">username</span><span>(), pwd)));
+</span><span>                    basic_bytes </span><span style="color:#a626a4;">= </span><span>Some(encoded_str.</span><span style="color:#0184bc;">into_bytes</span><span>());
+</span><span>                };
+</span><span>
+</span><span>                Ok(InnerProxy::Http {
+</span><span>                    auth: basic_bytes,
+</span><span>                    url: addr.</span><span style="color:#0184bc;">to_string</span><span>(),
+</span><span>                })
+</span><span>            },
+</span><span>            </span><span style="color:#50a14f;">&quot;socks5&quot; </span><span style="color:#a626a4;">=&gt; </span><span>{
+</span><span>                </span><span style="color:#a626a4;">let mut</span><span> auth_pair </span><span style="color:#a626a4;">= </span><span>None;
+</span><span>                </span><span style="color:#a626a4;">if let </span><span>Some(pwd) </span><span style="color:#a626a4;">=</span><span> url.</span><span style="color:#0184bc;">password</span><span>() {
+</span><span>                    auth_pair </span><span style="color:#a626a4;">= </span><span>Some((url.</span><span style="color:#0184bc;">username</span><span>().</span><span style="color:#0184bc;">to_string</span><span>(), pwd.</span><span style="color:#0184bc;">to_string</span><span>()))
+</span><span>                };
+</span><span>
+</span><span>                Ok(InnerProxy::Socks {
+</span><span>                    auth: auth_pair,
+</span><span>                    url: addr.</span><span style="color:#0184bc;">to_string</span><span>(),
+</span><span>                })
+</span><span>            }
+</span><span>
+</span><span>            </span><span style="color:#a626a4;">_ =&gt; </span><span>Err(Error::new(ErrorKind::Unsupported, </span><span style="color:#50a14f;">&quot;unknown schema&quot;</span><span>))
+</span><span>        }
+</span><span>
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#a626a4;">pub</span><span> async </span><span style="color:#a626a4;">fn </span><span style="color:#0184bc;">connect_async</span><span>(</span><span style="color:#a626a4;">&amp;</span><span style="color:#e45649;">self</span><span>, </span><span style="color:#e45649;">target</span><span>: </span><span style="color:#a626a4;">&amp;str</span><span>) -&gt; Result&lt;ProxyStream, Error&gt; {
+</span><span>        </span><span style="color:#a626a4;">let</span><span> target_url </span><span style="color:#a626a4;">= </span><span>Url::parse(target)
+</span><span>            .</span><span style="color:#0184bc;">unwrap_or_else</span><span>(|</span><span style="color:#e45649;">e</span><span>| panic!(</span><span style="color:#50a14f;">&quot;failed to parse target url: {}&quot;</span><span>, target));
+</span><span>        </span><span style="color:#a626a4;">let</span><span> host </span><span style="color:#a626a4;">= match</span><span> target_url.</span><span style="color:#0184bc;">host_str</span><span>() {
+</span><span>            Some(host) </span><span style="color:#a626a4;">=&gt;</span><span> host.</span><span style="color:#0184bc;">to_string</span><span>(),
+</span><span>            None </span><span style="color:#a626a4;">=&gt; return </span><span>Err(Error::new(ErrorKind::Unsupported,
+</span><span>                                          </span><span style="color:#50a14f;">&quot;target host not available&quot;</span><span>)),
+</span><span>        };
+</span><span>        </span><span style="color:#a626a4;">let</span><span> port </span><span style="color:#a626a4;">=</span><span> target_url.</span><span style="color:#0184bc;">port</span><span>().</span><span style="color:#0184bc;">unwrap_or</span><span>(</span><span style="color:#c18401;">443</span><span>);
+</span><span>        </span><span style="color:#a626a4;">match </span><span style="color:#e45649;">self </span><span>{
+</span><span>            InnerProxy::Http {auth, url } </span><span style="color:#a626a4;">=&gt; </span><span>{
+</span><span>                </span><span style="color:#a626a4;">let mut</span><span> tcp_stream </span><span style="color:#a626a4;">= </span><span>TcpStream::connect(url).await
+</span><span>                    .</span><span style="color:#0184bc;">expect</span><span>(</span><span style="color:#50a14f;">&quot;failed to connect http[s] proxy&quot;</span><span>);
+</span><span>                Ok(ProxyStream::Http(</span><span style="color:#a626a4;">Self</span><span>::tunnel(tcp_stream, host, port, auth).await.</span><span style="color:#0184bc;">unwrap</span><span>()))
+</span><span>            },
+</span><span>            InnerProxy::Socks { auth, url} </span><span style="color:#a626a4;">=&gt; </span><span>{
+</span><span>                </span><span style="color:#a626a4;">let</span><span> stream </span><span style="color:#a626a4;">= match</span><span> auth {
+</span><span>                    Some(au) </span><span style="color:#a626a4;">=&gt; </span><span>Socks5Stream::connect_with_password(
+</span><span>                        url.</span><span style="color:#0184bc;">as_str</span><span>(), (host.</span><span style="color:#0184bc;">as_str</span><span>(), port), </span><span style="color:#a626a4;">&amp;</span><span>au.</span><span style="color:#c18401;">0</span><span>, </span><span style="color:#a626a4;">&amp;</span><span>au.</span><span style="color:#c18401;">1</span><span>).await,
+</span><span>                    None </span><span style="color:#a626a4;">=&gt; </span><span>Socks5Stream::connect(url.</span><span style="color:#0184bc;">as_str</span><span>(), (host.</span><span style="color:#0184bc;">as_str</span><span>(), port)).await,
+</span><span>                };
+</span><span>                </span><span style="color:#a626a4;">match</span><span> stream {
+</span><span>                    Ok(s) </span><span style="color:#a626a4;">=&gt; </span><span>Ok(ProxyStream::Socks(s)),
+</span><span>                    Err(e) </span><span style="color:#a626a4;">=&gt; </span><span>Err(Error::new(ErrorKind::NotConnected, </span><span style="color:#50a14f;">&quot;failed to create socks proxy stream&quot;</span><span>))
+</span><span>                }
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    async </span><span style="color:#a626a4;">fn </span><span style="color:#0184bc;">tunnel</span><span>(</span><span style="color:#a626a4;">mut </span><span style="color:#e45649;">conn</span><span>: TcpStream,
+</span><span>                    </span><span style="color:#e45649;">host</span><span>: String,
+</span><span>                    </span><span style="color:#e45649;">port</span><span>: </span><span style="color:#a626a4;">u16</span><span>,
+</span><span>                    </span><span style="color:#e45649;">auth</span><span>: </span><span style="color:#a626a4;">&amp;</span><span>Option&lt;Vec&lt;</span><span style="color:#a626a4;">u8</span><span>&gt;&gt;) -&gt; Result&lt;TcpStream, Error&gt;
+</span><span>    {
+</span><span>        </span><span style="color:#a626a4;">use </span><span>tokio::io::{AsyncReadExt, AsyncWriteExt};
+</span><span>        </span><span style="color:#a626a4;">let mut</span><span> buf </span><span style="color:#a626a4;">= </span><span>format!(
+</span><span>            </span><span style="color:#50a14f;">&quot;\
+</span><span style="color:#50a14f;">         CONNECT </span><span style="color:#c18401;">{0}</span><span style="color:#50a14f;">:</span><span style="color:#c18401;">{1}</span><span style="color:#50a14f;"> HTTP/1.1</span><span style="color:#0997b3;">\r\n</span><span style="color:#50a14f;">\
+</span><span style="color:#50a14f;">         Host: </span><span style="color:#c18401;">{0}</span><span style="color:#50a14f;">:</span><span style="color:#c18401;">{1}</span><span style="color:#0997b3;">\r\n</span><span style="color:#50a14f;">\
+</span><span style="color:#50a14f;">         &quot;</span><span>,
+</span><span>            host, port
+</span><span>        ).</span><span style="color:#0184bc;">into_bytes</span><span>();
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">if let </span><span>Some(au) </span><span style="color:#a626a4;">=</span><span> auth {
+</span><span>            buf.</span><span style="color:#0184bc;">extend_from_slice</span><span>(</span><span style="color:#a626a4;">b</span><span style="color:#50a14f;">&quot;Proxy-Authorization: &quot;</span><span>);
+</span><span>            buf.</span><span style="color:#0184bc;">extend_from_slice</span><span>(au.</span><span style="color:#0184bc;">as_slice</span><span>());
+</span><span>            buf.</span><span style="color:#0184bc;">extend_from_slice</span><span>(</span><span style="color:#a626a4;">b</span><span style="color:#50a14f;">&quot;</span><span style="color:#0997b3;">\r\n</span><span style="color:#50a14f;">&quot;</span><span>);
+</span><span>        }
+</span><span>
+</span><span>        buf.</span><span style="color:#0184bc;">extend_from_slice</span><span>(</span><span style="color:#a626a4;">b</span><span style="color:#50a14f;">&quot;</span><span style="color:#0997b3;">\r\n</span><span style="color:#50a14f;">&quot;</span><span>);
+</span><span>        conn.</span><span style="color:#0184bc;">write_all</span><span>(</span><span style="color:#a626a4;">&amp;</span><span>buf).await.</span><span style="color:#0184bc;">unwrap</span><span>();
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">let mut</span><span> buf </span><span style="color:#a626a4;">= </span><span>[</span><span style="color:#c18401;">0</span><span>; </span><span style="color:#c18401;">1024</span><span>];
+</span><span>        </span><span style="color:#a626a4;">let mut</span><span> pos </span><span style="color:#a626a4;">= </span><span style="color:#c18401;">0</span><span>;
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">loop </span><span>{
+</span><span>            </span><span style="color:#a626a4;">let</span><span> n </span><span style="color:#a626a4;">=</span><span> conn.</span><span style="color:#0184bc;">read</span><span>(</span><span style="color:#a626a4;">&amp;mut</span><span> buf[pos</span><span style="color:#a626a4;">..</span><span>]).await</span><span style="color:#a626a4;">?</span><span>;
+</span><span>            </span><span style="color:#a626a4;">if</span><span> n </span><span style="color:#a626a4;">== </span><span style="color:#c18401;">0 </span><span>{
+</span><span>                </span><span style="color:#a626a4;">return </span><span>Err(Error::new(ErrorKind::UnexpectedEof, </span><span style="color:#50a14f;">&quot;0 bytes in reading tunnel&quot;</span><span>));
+</span><span>            }
+</span><span>            pos </span><span style="color:#a626a4;">+=</span><span> n;
+</span><span>
+</span><span>            </span><span style="color:#a626a4;">let</span><span> recvd </span><span style="color:#a626a4;">= &amp;</span><span>buf[</span><span style="color:#a626a4;">..</span><span>pos];
+</span><span>            </span><span style="color:#a626a4;">if</span><span> recvd.</span><span style="color:#0184bc;">starts_with</span><span>(</span><span style="color:#a626a4;">b</span><span style="color:#50a14f;">&quot;HTTP/1.1 200&quot;</span><span>) </span><span style="color:#a626a4;">||</span><span> recvd.</span><span style="color:#0184bc;">starts_with</span><span>(</span><span style="color:#a626a4;">b</span><span style="color:#50a14f;">&quot;HTTP/1.0 200&quot;</span><span>) {
+</span><span>                </span><span style="color:#a626a4;">if</span><span> recvd.</span><span style="color:#0184bc;">ends_with</span><span>(</span><span style="color:#a626a4;">b</span><span style="color:#50a14f;">&quot;</span><span style="color:#0997b3;">\r\n\r\n</span><span style="color:#50a14f;">&quot;</span><span>) {
+</span><span>                    </span><span style="color:#a626a4;">return </span><span>Ok(conn);
+</span><span>                }
+</span><span>                </span><span style="color:#a626a4;">if</span><span> pos </span><span style="color:#a626a4;">==</span><span> buf.</span><span style="color:#0184bc;">len</span><span>() {
+</span><span>                    </span><span style="color:#a626a4;">return </span><span>Err(Error::new(ErrorKind::UnexpectedEof, </span><span style="color:#50a14f;">&quot;proxy headers too long than tunnel&quot;</span><span>));
+</span><span>                }
+</span><span>            } </span><span style="color:#a626a4;">else if</span><span> recvd.</span><span style="color:#0184bc;">starts_with</span><span>(</span><span style="color:#a626a4;">b</span><span style="color:#50a14f;">&quot;HTTP/1.1 407&quot;</span><span>) {
+</span><span>                </span><span style="color:#a626a4;">return </span><span>Err(Error::new(ErrorKind::PermissionDenied, </span><span style="color:#50a14f;">&quot;proxy authentication required&quot;</span><span>));
+</span><span>            } </span><span style="color:#a626a4;">else </span><span>{
+</span><span>                </span><span style="color:#a626a4;">return </span><span>Err(Error::new(ErrorKind::Other, </span><span style="color:#50a14f;">&quot;unsuccessful tunnel&quot;</span><span>));
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<h2 id="proxystream"><code>ProxyStream</code></h2>
+<p>To support multiple protocols, we also need to return a stream object.
+Here we can have two kinds of design with the stream object. First, we can use <code>Polymorphism</code> in Rust,
+<code>type BoxConn = Box&lt;dyn SomeConn&gt;</code> and <code>trait SomeConn: AsyncRead + AsyncWrite + Unpin {}</code>. 
+The <code>reqwest</code> library used the solution in its proxy implementation. The second, using <code>enum</code> and
+to each protocol stream, implementing <code>AsyncRead</code> and <code>AsyncWrite</code> traits. Apparently, the second is better.
+because dynamical dispatching will cut down the performance. </p>
+<pre data-lang="rust" style="background-color:#fafafa;color:#383a42;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#a626a4;">enum </span><span>ProxyStream {
+</span><span>    Http(TcpStream),
+</span><span>
+</span><span>    Socks(Socks5Stream&lt;TcpStream&gt;)
+</span><span>}
+</span><span>
+</span><span style="color:#a626a4;">impl </span><span>AsyncRead </span><span style="color:#a626a4;">for </span><span>ProxyStream {
+</span><span>    </span><span style="color:#a626a4;">fn </span><span style="color:#0184bc;">poll_read</span><span>(</span><span style="color:#e45649;">self</span><span>: Pin&lt;</span><span style="color:#a626a4;">&amp;mut Self</span><span>&gt;,
+</span><span>                 </span><span style="color:#e45649;">cx</span><span>: </span><span style="color:#a626a4;">&amp;mut </span><span>Context&lt;&#39;</span><span style="color:#a626a4;">_</span><span>&gt;,
+</span><span>                 </span><span style="color:#e45649;">buf</span><span>: </span><span style="color:#a626a4;">&amp;mut </span><span>ReadBuf&lt;&#39;</span><span style="color:#a626a4;">_</span><span>&gt;) -&gt; Poll&lt;std::io::Result&lt;()&gt;&gt; {
+</span><span>        </span><span style="color:#a626a4;">match </span><span style="color:#e45649;">self</span><span>.</span><span style="color:#0184bc;">get_mut</span><span>() {
+</span><span>            ProxyStream::Http(s) </span><span style="color:#a626a4;">=&gt; </span><span>Pin::new(s).</span><span style="color:#0184bc;">poll_read</span><span>(cx, buf),
+</span><span>            ProxyStream::Socks(s) </span><span style="color:#a626a4;">=&gt; </span><span>Pin::new(s).</span><span style="color:#0184bc;">poll_read</span><span>(cx, buf),
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#a626a4;">impl </span><span>AsyncWrite </span><span style="color:#a626a4;">for </span><span>ProxyStream {
+</span><span>    </span><span style="color:#a626a4;">fn </span><span style="color:#0184bc;">poll_write</span><span>(</span><span style="color:#e45649;">self</span><span>: Pin&lt;</span><span style="color:#a626a4;">&amp;mut Self</span><span>&gt;,
+</span><span>                  </span><span style="color:#e45649;">cx</span><span>: </span><span style="color:#a626a4;">&amp;mut </span><span>Context&lt;&#39;</span><span style="color:#a626a4;">_</span><span>&gt;,
+</span><span>                  </span><span style="color:#e45649;">buf</span><span>: </span><span style="color:#a626a4;">&amp;</span><span>[</span><span style="color:#a626a4;">u8</span><span>]) -&gt; Poll&lt;Result&lt;</span><span style="color:#a626a4;">usize</span><span>, Error&gt;&gt; {
+</span><span>        </span><span style="color:#a626a4;">match </span><span style="color:#e45649;">self</span><span>.</span><span style="color:#0184bc;">get_mut</span><span>() {
+</span><span>            ProxyStream::Http(s) </span><span style="color:#a626a4;">=&gt; </span><span>Pin::new(s).</span><span style="color:#0184bc;">poll_write</span><span>(cx, buf),
+</span><span>            ProxyStream::Socks(s) </span><span style="color:#a626a4;">=&gt; </span><span>Pin::new(s).</span><span style="color:#0184bc;">poll_write</span><span>(cx, buf),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#a626a4;">fn </span><span style="color:#0184bc;">poll_flush</span><span>(</span><span style="color:#e45649;">self</span><span>: Pin&lt;</span><span style="color:#a626a4;">&amp;mut Self</span><span>&gt;, </span><span style="color:#e45649;">cx</span><span>: </span><span style="color:#a626a4;">&amp;mut </span><span>Context&lt;&#39;</span><span style="color:#a626a4;">_</span><span>&gt;) -&gt; Poll&lt;Result&lt;(), Error&gt;&gt; {
+</span><span>        </span><span style="color:#a626a4;">match </span><span style="color:#e45649;">self</span><span>.</span><span style="color:#0184bc;">get_mut</span><span>() {
+</span><span>            ProxyStream::Http(s) </span><span style="color:#a626a4;">=&gt; </span><span>Pin::new(s).</span><span style="color:#0184bc;">poll_flush</span><span>(cx),
+</span><span>            ProxyStream::Socks(s) </span><span style="color:#a626a4;">=&gt; </span><span>Pin::new(s).</span><span style="color:#0184bc;">poll_flush</span><span>(cx),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#a626a4;">fn </span><span style="color:#0184bc;">poll_shutdown</span><span>(</span><span style="color:#e45649;">self</span><span>: Pin&lt;</span><span style="color:#a626a4;">&amp;mut Self</span><span>&gt;, </span><span style="color:#e45649;">cx</span><span>: </span><span style="color:#a626a4;">&amp;mut </span><span>Context&lt;&#39;</span><span style="color:#a626a4;">_</span><span>&gt;) -&gt; Poll&lt;Result&lt;(), Error&gt;&gt; {
+</span><span>        </span><span style="color:#a626a4;">match </span><span style="color:#e45649;">self</span><span>.</span><span style="color:#0184bc;">get_mut</span><span>() {
+</span><span>            ProxyStream::Http(s) </span><span style="color:#a626a4;">=&gt; </span><span>Pin::new(s).</span><span style="color:#0184bc;">poll_shutdown</span><span>(cx),
+</span><span>            ProxyStream::Socks(s) </span><span style="color:#a626a4;">=&gt; </span><span>Pin::new(s).</span><span style="color:#0184bc;">poll_shutdown</span><span>(cx),
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<h2 id="example">Example</h2>
+<p>In <code>cargo.toml</code>, add the dependencies</p>
+<pre data-lang="toml" style="background-color:#fafafa;color:#383a42;" class="language-toml "><code class="language-toml" data-lang="toml"><span style="color:#e45649;">tokio </span><span>= { </span><span style="color:#e45649;">version </span><span>= </span><span style="color:#50a14f;">&quot;1&quot;</span><span>, </span><span style="color:#e45649;">features </span><span>= [</span><span style="color:#50a14f;">&quot;full&quot;</span><span>] }
+</span><span style="color:#e45649;">serde </span><span>= { </span><span style="color:#e45649;">version </span><span>= </span><span style="color:#50a14f;">&quot;1.0&quot;</span><span>, </span><span style="color:#e45649;">features </span><span>= [</span><span style="color:#50a14f;">&quot;derive&quot;</span><span>] }
+</span><span style="color:#e45649;">serde_json </span><span>= </span><span style="color:#50a14f;">&quot;1.0.89&quot;
+</span><span style="color:#e45649;">tokio-tungstenite </span><span>= { </span><span style="color:#e45649;">version </span><span>= </span><span style="color:#50a14f;">&quot;0.18&quot;</span><span>, </span><span style="color:#e45649;">features </span><span>= [ </span><span style="color:#50a14f;">&quot;native-tls&quot; </span><span>]}
+</span><span style="color:#e45649;">futures-util </span><span>= </span><span style="color:#50a14f;">&quot;0.3&quot;
+</span><span style="color:#e45649;">tokio-socks </span><span>= </span><span style="color:#50a14f;">&quot;0.5.1&quot;
+</span><span style="color:#e45649;">url </span><span>= </span><span style="color:#50a14f;">&quot;2.3.1&quot;
+</span><span style="color:#e45649;">base64 </span><span>= </span><span style="color:#50a14f;">&quot;0.20.0&quot;
+</span></code></pre>
+<p>In <code>websocket_test.rs</code></p>
+<pre data-lang="rust" style="background-color:#fafafa;color:#383a42;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#a626a4;">use </span><span>std::borrow::Borrow;
+</span><span style="color:#a626a4;">use </span><span>std::fmt::format;
+</span><span style="color:#a626a4;">use </span><span>std::io::Error;
+</span><span style="color:#a626a4;">use </span><span>std::io::ErrorKind;
+</span><span style="color:#a626a4;">use </span><span>std::net::SocketAddr;
+</span><span style="color:#a626a4;">use </span><span>std::pin::Pin;
+</span><span style="color:#a626a4;">use </span><span>std::task::{Context, Poll};
+</span><span style="color:#a626a4;">use </span><span>std::time::{Instant, SystemTime};
+</span><span>
+</span><span style="color:#a626a4;">use </span><span>futures_util::sink::SinkExt;
+</span><span style="color:#a626a4;">use </span><span>futures_util::StreamExt;
+</span><span style="color:#a626a4;">use </span><span>serde::Serialize;
+</span><span style="color:#a626a4;">use </span><span>tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
+</span><span style="color:#a626a4;">use </span><span>tokio::net::TcpStream;
+</span><span style="color:#a626a4;">use </span><span>tokio_socks::TargetAddr;
+</span><span style="color:#a626a4;">use </span><span>tokio_socks::tcp::Socks5Stream;
+</span><span style="color:#a626a4;">use </span><span>tokio_tungstenite::client_async_tls;
+</span><span style="color:#a626a4;">use </span><span>tokio_tungstenite::Connector::NativeTls;
+</span><span style="color:#a626a4;">use </span><span>tokio_tungstenite::tungstenite::{connect, HandshakeError, Message};
+</span><span style="color:#a626a4;">use </span><span>url::Url;
+</span><span>
+</span><span style="color:#a626a4;">use </span><span>exchange_api::add;
+</span><span>
+</span><span style="color:#a626a4;">fn </span><span style="color:#0184bc;">main</span><span>() {
+</span><span>    </span><span style="color:#a0a1a7;">// websocket requires proxy
+</span><span>    </span><span style="color:#a626a4;">let</span><span> websocket_addr </span><span style="color:#a626a4;">= </span><span style="color:#50a14f;">&quot;wss://stream.binance.com/ws&quot;</span><span>;
+</span><span>
+</span><span>    </span><span style="color:#a626a4;">let</span><span> runtime </span><span style="color:#a626a4;">= </span><span>tokio::runtime::Builder::new_multi_thread()
+</span><span>        .</span><span style="color:#0184bc;">enable_all</span><span>().</span><span style="color:#0184bc;">build</span><span>().</span><span style="color:#0184bc;">expect</span><span>(</span><span style="color:#50a14f;">&quot;failed to create runtime&quot;</span><span>);
+</span><span>
+</span><span>    runtime.</span><span style="color:#0184bc;">block_on</span><span>(async </span><span style="color:#a626a4;">move </span><span>{
+</span><span>        </span><span style="color:#a626a4;">let</span><span> proxy_url </span><span style="color:#a626a4;">= </span><span style="color:#50a14f;">&quot;socks5://127.0.0.1:1080&quot;</span><span>;
+</span><span>        </span><span style="color:#a0a1a7;">// let proxy_url = &quot;http://127.0.0.1:1081&quot;;
+</span><span>        </span><span style="color:#a626a4;">let</span><span> proxy </span><span style="color:#a626a4;">= </span><span>InnerProxy::from_proxy_str(proxy_url)
+</span><span>            .</span><span style="color:#0184bc;">expect</span><span>(</span><span style="color:#50a14f;">&quot;failed to parse inner proxy&quot;</span><span>);
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">let mut</span><span> tcp_stream </span><span style="color:#a626a4;">=</span><span> proxy.</span><span style="color:#0184bc;">connect_async</span><span>(websocket_addr).await
+</span><span>            .</span><span style="color:#0184bc;">unwrap_or_else</span><span>(|</span><span style="color:#e45649;">e</span><span>| panic!(</span><span style="color:#50a14f;">&quot;failed to create proxy stream: {}&quot;</span><span>, e));
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">let </span><span>(</span><span style="color:#a626a4;">mut</span><span> stream, resp) </span><span style="color:#a626a4;">= match </span><span style="color:#0184bc;">client_async_tls</span><span>(
+</span><span>            websocket_addr, tcp_stream).await {
+</span><span>            Ok(res) </span><span style="color:#a626a4;">=&gt;</span><span> res,
+</span><span>            Err(e) </span><span style="color:#a626a4;">=&gt; </span><span>{
+</span><span>                </span><span style="color:#a626a4;">match</span><span> e {
+</span><span>                    tokio_tungstenite::tungstenite::Error::Http(re) </span><span style="color:#a626a4;">=&gt; </span><span>{
+</span><span>                        println!(</span><span style="color:#50a14f;">&quot;</span><span style="color:#c18401;">{}</span><span style="color:#50a14f;">&quot;</span><span>, String::from_utf8_lossy(re.</span><span style="color:#0184bc;">into_body</span><span>().</span><span style="color:#0184bc;">unwrap</span><span>().</span><span style="color:#0184bc;">as_slice</span><span>()));
+</span><span>                    }
+</span><span>                    </span><span style="color:#a626a4;">_ =&gt; </span><span>println!(</span><span style="color:#50a14f;">&quot;</span><span style="color:#c18401;">{:?}</span><span style="color:#50a14f;">&quot;</span><span>, e),
+</span><span>                }
+</span><span>                </span><span style="color:#a626a4;">return</span><span>;
+</span><span>            }
+</span><span>        };
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">let</span><span> sub </span><span style="color:#a626a4;">= </span><span>Subscribe::new(
+</span><span>            vec![</span><span style="color:#50a14f;">&quot;btcusdt@aggTrade&quot;</span><span>.</span><span style="color:#0184bc;">to_string</span><span>()],
+</span><span>            SystemTime::now().</span><span style="color:#0184bc;">duration_since</span><span>(SystemTime::</span><span style="color:#c18401;">UNIX_EPOCH</span><span>).</span><span style="color:#0184bc;">unwrap</span><span>().</span><span style="color:#0184bc;">as_secs</span><span>());
+</span><span>        </span><span style="color:#a626a4;">let</span><span> sub_string </span><span style="color:#a626a4;">= </span><span>serde_json::to_string(</span><span style="color:#a626a4;">&amp;</span><span>sub).</span><span style="color:#0184bc;">unwrap</span><span>();
+</span><span>        println!(</span><span style="color:#50a14f;">&quot;sub_string: </span><span style="color:#c18401;">{}</span><span style="color:#50a14f;">&quot;</span><span>, sub_string);
+</span><span>        stream.</span><span style="color:#0184bc;">send</span><span>(Message::Text(sub_string)).await;
+</span><span>
+</span><span>        </span><span style="color:#a626a4;">while let </span><span>Some(msg) </span><span style="color:#a626a4;">=</span><span> stream.</span><span style="color:#0184bc;">next</span><span>().await {
+</span><span>            </span><span style="color:#a626a4;">match</span><span> msg {
+</span><span>                Ok(_msg) </span><span style="color:#a626a4;">=&gt; </span><span>println!(</span><span style="color:#50a14f;">&quot;message: </span><span style="color:#c18401;">{:?}</span><span style="color:#50a14f;">&quot;</span><span>, _msg),
+</span><span>                Err(e) </span><span style="color:#a626a4;">=&gt; </span><span>println!(</span><span style="color:#50a14f;">&quot;message: </span><span style="color:#c18401;">{:?}</span><span style="color:#50a14f;">&quot;</span><span>, e)
+</span><span>            }
+</span><span>        }
+</span><span>    });
+</span><span>
+</span><span>}
+</span><span>
+</span><span>
+</span><span>#[</span><span style="color:#e45649;">derive</span><span>(Debug, Serialize)]
+</span><span style="color:#a626a4;">struct </span><span>Subscribe {
+</span><span>    </span><span style="color:#e45649;">method</span><span>: String,
+</span><span>    </span><span style="color:#e45649;">params</span><span>: Vec&lt;String&gt;,
+</span><span>    </span><span style="color:#e45649;">id</span><span>: </span><span style="color:#a626a4;">u64</span><span>,
+</span><span>}
+</span><span>
+</span><span style="color:#a626a4;">impl </span><span>Subscribe {
+</span><span>    </span><span style="color:#a626a4;">pub fn </span><span style="color:#0184bc;">new</span><span>(</span><span style="color:#e45649;">params</span><span>: Vec&lt;String&gt;, </span><span style="color:#e45649;">id</span><span>: </span><span style="color:#a626a4;">u64</span><span>) -&gt; </span><span style="color:#a626a4;">Self </span><span>{
+</span><span>        </span><span style="color:#a626a4;">Self </span><span>{ method: </span><span style="color:#50a14f;">&quot;SUBSCRIBE&quot;</span><span>.</span><span style="color:#0184bc;">to_string</span><span>(),
+</span><span>            params, id }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span>
+</span></code></pre>
+<h2 id="summary">Summary</h2>
+<p>The official <code>tokio-tungstenite</code> library has some issues about the proxy feature support, such as 
+<a href="https://github.com/snapview/tungstenite-rs/issues/177">issue - Is there any support for proxies? #177</a>.</p>
+<p>So with this article, we can add proxy feature to <code>tokio-tungstenite</code> library. Wish it helps you.</p>
+
+        </section>
+
+        
+            <div class="post-tags">
+                <nav class="nav tags">
+                    <ul class="tags">
+                        
+                            <li><a href=https://chuxi.github.io/tags/rust/>rust</a></li>
+                        
+                            <li><a href=https://chuxi.github.io/tags/network/>network</a></li>
+                        
+                    </ul>
+                </nav>
+            </div>
+        
+
+    </article>
+</main>
+
+
+
+        <footer>
+  <div style="display:flex">
+    
+        <a class="soc" href=https:&#x2F;&#x2F;github.com&#x2F;chuxi title=GitHub>
+            <i data-feather=github></i>
+        </a>
+    
+        <a class="soc" href=https:&#x2F;&#x2F;twitter.com&#x2F;chuxiking title=Twitter>
+            <i data-feather=twitter></i>
+        </a>
+    
+  </div>
+  <div class="footer-info">
+    2024 © chuxi |
+  </div>
+</footer>
+
+
+<script>
+    feather.replace();
+</script>
+
+
+    </div>
+</body>
+
+</html>

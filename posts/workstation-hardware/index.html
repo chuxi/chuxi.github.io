@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    
+    <title>
+         个人开发工作站配置
+        
+    </title>
+    
+
+    
+         <link rel="icon" type="image/png" href=&#x2F;icon&#x2F;favicon.jpeg />
+    
+
+    
+
+    
+
+    
+        <!-- Cloudflare Web Analytics -->
+        <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+                data-cf-beacon='{"token": "a2ea65bd409f4a6d980c46cde3dc09c2"}'>
+        </script><!-- End Cloudflare Web Analytics -->
+    
+
+    
+    
+        <script src=https://chuxi.github.io/js/feather.min.js></script>
+    
+
+
+    
+        <link href=https://chuxi.github.io/css/fonts.css rel="stylesheet" />
+    
+
+    <link rel="stylesheet" type="text/css" media="screen" href=https://chuxi.github.io/css/main.css />
+
+    
+
+    <meta name="robots" content="index, follow">
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    
+        <meta name="description" content="AI开发用途的工作站配置">
+    
+    
+
+
+</head>
+
+
+<body>
+    <div class="content">
+        <header>
+    <div class="main" id="main_title">
+        <a href=https:&#x2F;&#x2F;chuxi.github.io>Chuxi&#x27;s Daily Posts</a>
+    </div>
+
+    <nav>
+        
+            <a href=&#x2F;>Home</a>
+        
+            <a href=&#x2F;posts>All posts</a>
+        
+            <a href=&#x2F;about>About</a>
+        
+            <a href=&#x2F;tags>Tags</a>
+        
+
+        
+            |
+
+            
+                <a href=&#x2F;>en</a>
+            
+        
+
+        
+    </nav>
+</header>
+
+
+        
+    
+<main>
+    <article>
+        <div class="title">
+            <h1 class="title">个人开发工作站配置</h1>
+            <div class="meta">
+                
+                on  2023-08-28
+
+                
+            </div>
+        </div>
+
+        
+
+        <section class="body">
+            <h2 id="gong-zuo-zhan">工作站</h2>
+<p>有两年没有关注AI的发展，近期受到<code>ChatGPT</code>的震撼，个人心血来潮就想配置一个能简单运行大模型的工作站放在家里，后续可以方便部署一套个人使用的小智能系统。除此之外还有一个原因是，个人不喜欢<code>apple macbook pro 16</code>的设计，感觉无比丑陋，所以也不想升级目前的<code>macbook pro 15 2019</code>，就打算继续用着，但考虑平时硬件性能有些方面会比较勉强，例如之前编译<code>LLVM</code> <code>Clang</code>时，轻轻松松达到了100GB存储空间，而且编译速度也不是很理想，所以需要再提高一下满足性能需求。此外，自己偶尔使用的云服务器上linux系统，需要硬件配置高时每次临时开一个，也是比较麻烦，而低硬件配置海外服务器跑几年也基本上成本不小。所以就开始考虑家里部署一套工作站，随时能远程访问，开发一些项目时，也可以利用<code>intellij idea remote dev</code>功能，还能因此让自己的macbook pro再用几年。</p>
+<h2 id="ying-jian-pei-zhi">硬件配置</h2>
+<p>在综合研究京东组装服务商的产品之后，自己罗列了一套完整的配置，选择了一家店的配置再额外做了个升级。相比之下，找服务商购买，自己如果采购一系列的硬件再组装，可能成本会更高，因为这些店家都会有<code>OEM</code>优势，很多的硬件采购我们自己个人是很难买到厂家供应版本的，例如<code>Intel CPU 13900K</code>，不如就省点力气，此外，如果按照<code>AMD撕裂者</code>这种真工作站配置，成本就会急剧上升。另外如果搜索AI开发服务器，<code>supermicro</code>超微是当前领域里做得比较好的。所以自己也顺便参考了一下，看看能不能采购到超微的主板然后自己配置一套，但实际上走下来非常困难，国内采购成本很高，且不一定有售后服务。所以综合考虑下来还是直接走<code>intel z790 芯片组</code>路线。</p>
+<table><thead><tr><th style="text-align: left">组件</th><th style="text-align: left">型号</th></tr></thead><tbody>
+<tr><td style="text-align: left">CPU</td><td style="text-align: left">Intel Core 13900k</td></tr>
+<tr><td style="text-align: left">主板</td><td style="text-align: left">华硕 ProArt Z790-CREATOR</td></tr>
+<tr><td style="text-align: left">内存</td><td style="text-align: left">海盗船 2*32GB DDR5</td></tr>
+<tr><td style="text-align: left">显卡</td><td style="text-align: left">2*24GB 4090 水冷七彩虹</td></tr>
+<tr><td style="text-align: left">硬盘</td><td style="text-align: left">SAMSUNG 1TB</td></tr>
+<tr><td style="text-align: left">电源</td><td style="text-align: left">长城巨龙 2000w</td></tr>
+<tr><td style="text-align: left">机箱</td><td style="text-align: left">PHANTEKS PK620</td></tr>
+</tbody></table>
+<p>这个配置中，CPU与主板基本上绑定，店家默认也不会提供<code>PROART Z790</code>主板，需要自己设置，这个主板支持双路PCIE 5.0x8，<code>CPU 13900k</code>一共也就支持20(16+4 or 2x8+4)通道PCIe，所以双显卡方案里面几乎很少有消费级主板能支持双路PCIex8，一般都是一条PCIex8，一条PCIex4，跟店家确认之后就满市场找性价比高又支持双路PCIex8的主板，除了这款也就<code>ROG HERO</code>能够支持相同的特性。此外，<code>PROART Z790</code>还有一个优势是有个万兆网卡接口，虽然家庭工作站用不起来，但也不妨碍心理上更舒服一点。</p>
+<p>比较坑的还是在店里买的时候没有具体确认硬盘与机箱的型号，事实上硬盘应该配置2TB，默认的OEM供应都还是<code>SAMSUNG 980 1TB</code>，而机箱实际上安装两张显卡后，基本上也就没啥硬盘位置，如果想做存储则可能需要额外配置。</p>
+<p>双显卡比较容易理解，目前的大模型看看都很大，但如果只是单张显卡24GB，很多模型都是跑的比较勉强，而且考虑4090这种级别显卡，未来可能同等配置也不容易买到，毕竟A100是真的买不起的。两张4090的配置性价比只会更高。</p>
+<p>还有一点是整体采用了水冷，毕竟家里用，噪音会有点考虑，但实际上风扇这个东西吧，只要开起来都是有不小的声音的，自己配置也就买个心理安慰。</p>
+<p>下单之后让店里安装<code>ubuntu server 22.04</code>系统，到手之后动手安装了显卡，开机启动，目前在家里工作运行良好。此外，家里的服务器对外没有开放端口，而是在openwrt的网关上安装了一个openvpn服务，每次只需要连接openvpn客户端之后即可访问家里的服务器，十分方便。</p>
+
+        </section>
+
+        
+            <div class="post-tags">
+                <nav class="nav tags">
+                    <ul class="tags">
+                        
+                            <li><a href=https://chuxi.github.io/tags/ai/>ai</a></li>
+                        
+                            <li><a href=https://chuxi.github.io/tags/hardware/>hardware</a></li>
+                        
+                    </ul>
+                </nav>
+            </div>
+        
+
+    </article>
+</main>
+
+
+
+        <footer>
+  <div style="display:flex">
+    
+        <a class="soc" href=https:&#x2F;&#x2F;github.com&#x2F;chuxi title=GitHub>
+            <i data-feather=github></i>
+        </a>
+    
+        <a class="soc" href=https:&#x2F;&#x2F;twitter.com&#x2F;chuxiking title=Twitter>
+            <i data-feather=twitter></i>
+        </a>
+    
+  </div>
+  <div class="footer-info">
+    2024 © chuxi |
+  </div>
+</footer>
+
+
+<script>
+    feather.replace();
+</script>
+
+
+    </div>
+</body>
+
+</html>

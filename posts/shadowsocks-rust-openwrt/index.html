@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    
+    <title>
+         shadowsocks rust openwrt配置
+        
+    </title>
+    
+
+    
+         <link rel="icon" type="image/png" href=&#x2F;icon&#x2F;favicon.jpeg />
+    
+
+    
+
+    
+
+    
+        <!-- Cloudflare Web Analytics -->
+        <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+                data-cf-beacon='{"token": "a2ea65bd409f4a6d980c46cde3dc09c2"}'>
+        </script><!-- End Cloudflare Web Analytics -->
+    
+
+    
+    
+        <script src=https://chuxi.github.io/js/feather.min.js></script>
+    
+
+
+    
+        <link href=https://chuxi.github.io/css/fonts.css rel="stylesheet" />
+    
+
+    <link rel="stylesheet" type="text/css" media="screen" href=https://chuxi.github.io/css/main.css />
+
+    
+
+    <meta name="robots" content="index, follow">
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    
+        <meta name="description" content="在openwrt环境下配置shadowsocks-rust，实现透明代理上网">
+    
+    
+
+
+</head>
+
+
+<body>
+    <div class="content">
+        <header>
+    <div class="main" id="main_title">
+        <a href=https:&#x2F;&#x2F;chuxi.github.io>Chuxi&#x27;s Daily Posts</a>
+    </div>
+
+    <nav>
+        
+            <a href=&#x2F;>Home</a>
+        
+            <a href=&#x2F;posts>All posts</a>
+        
+            <a href=&#x2F;about>About</a>
+        
+            <a href=&#x2F;tags>Tags</a>
+        
+
+        
+            |
+
+            
+                <a href=&#x2F;>en</a>
+            
+        
+
+        
+    </nav>
+</header>
+
+
+        
+    
+<main>
+    <article>
+        <div class="title">
+            <h1 class="title">shadowsocks rust openwrt配置</h1>
+            <div class="meta">
+                
+                on  2023-01-05
+
+                
+            </div>
+        </div>
+
+        
+
+        <section class="body">
+            <h2 id="openwrt">Openwrt</h2>
+<ul>
+<li>update 2023-07-31, 优化shadowsocks-dns使用，配置nftables tproxy</li>
+<li>update 2023-08-01, 优化透明代理配置</li>
+<li>update 2023-08-28, 路由器代理配置基本完善，解决warp无法使用ipv6问题</li>
+</ul>
+<p>在十年前便研究过嵌入式设备上运行最小化linux系统OpenWRT，当时还是在学校跟随老师上《嵌入式原理》课程，拿着<code>TP-Link WR</code>系列的mini路由器刷OpenWRT系统，当时也就是对计算机硬件略微了解，只是一个普普通通使用者。</p>
+<p>如今重新开始研究这个，主要是为了彻底解决网络问题，之前原本一直借助<code>Shadowsocks</code>自己购买VPS顺顺利利上网，做着一个老老实实本本份份忍受丢包延迟狗苟蝇营用着Google的普通人。但无奈最后这点生存空间也被剥夺了，上Google的速度越来越慢，丢包也越来越严重，一气之下，便开始了研究。</p>
+<p>此处特殊注明一下，该文章写的东西全都是无效的，只是个人研究使用。这不妨碍这篇文章的目的，只是在技术上探讨一下如何实现个人的网络安全。当然花钱买第三方网络服务才是最简单的解决方案，比如<code>Clash</code>，<code>V2Ray</code>，<code>ExpressVPN</code>等等。其实最刺激群众购买这些软件服务的，还是大家的炒币需求，只要稍稍想正经一点的数字货币交易，就不可能在自己国家允许交易，兔子不吃窝边草，韭菜还是国外的香。但这种第三方存在一个安全问题，涉及到中间人劫持以及很多的技术细节，如果服务商想看数据消息，基本上没有能逃过的。所以在这篇文章里继续强调，我们研究的目的是为了网络安全，绝对不是自由，派出所请不要找我喝茶。</p>
+<p>回到正题，这篇文章主要记录一下在<code>NanoPi</code>的路由器<code>R2C-Plus</code>设备上部署搭建<code>Shadowsocks-Rust</code>的过程，也希望帮助一下其他人，避开相同的错误，毕竟很多问题在嵌入式开发里，需要搭进去不少的青春岁月。</p>
+<h2 id="nanopi">NanoPi</h2>
+<p><code>NanoPi</code>是一款ARM开发板的系列产品，其中包括非常有名的<code>R2S</code>，<code>R4S</code>等等产品，就是开发板包了一个外壳当<code>软路由器</code>卖。这个产品的公司有一个非常公益的名字《友善之家》，每次看到都会浮现出杭州路边的《城管驿站》。经常有人会困惑于如何选择合适的<code>软路由器</code>，其实关键的核心在于成本与功耗，其他一些花里胡哨的功能，比如<code>docker</code>，真的没什么必要。所以目标200块钱上下，满足千兆网络上下数据转发顺顺利利，也就足够家庭使用了。而功耗这方面，<code>x86_64</code>处理器，只能说非常不适合，跑多了还得搞个风扇散热。综合之下，290块钱买了<code>R2C-Plus</code>这款路由器，跟<code>R2S</code>配置多了一个8GB固定存储，省下再购买TF存储卡的钱。这里说一下也是觉得该公司产品非常不错，定位非常之准确，算是比较下来众多路由器产品里性价比最合适的。</p>
+<p>另外一个需求是能够运行<code>Shadowsocks-Rust</code>，<code>Rust</code>本身的跨平台编译是支持嵌入式设备开发的，所以只需要能够运行openwrt， 以及硬件设备的CPU指令集不是特别离谱，就应该能编译，所以看<code>R2C-Plus</code>采用<code>ARM64</code>架构，也就不会有太大的问题。</p>
+<p>在通电之后，根据<a href="https://wiki.friendlyelec.com/wiki/index.php/NanoPi_R2C_Plus/zh">R2C-Plus wiki文档</a>， 稍稍熟悉之后，便能够开始完成一些基础的配置操作。本来买个路由器，有一些预装的功能服务，但如果个人没什么必要的话也是可以直接删除，避免占用路由器硬件资源。</p>
+<p>整个过程可以分为：</p>
+<ol>
+<li>编译shadowsocks-rust <code>-target aarch64-unknown-linux-musl -features local-redir,local-dns</code></li>
+<li>直接解压安装，启动 <code>local-dns</code>, <code>local-redir</code>，不需要打包成 <code>ipk</code></li>
+<li>配置透明代理 nftables tproxy，此处建议OpenWrt系统升级到22，使用nftables配置防火墙规则</li>
+</ol>
+<p><code>R2S-Plus</code>官方版本的OpenWrt比较稳定，但使用较长一段时间后遇到过断网的情况，后来直接升级最新的稳定版本解决，这个过程中先做好原系统备份，再操作升级修复。毕竟OpenWrt属于开源系统，厂家能一直更新迭代，相比于其他自然生长的路由设备已经好了很多。</p>
+<h2 id="bian-yi-openwrtke-zhi-xing-shadowsocks-rust">编译openwrt可执行<code>shadowsocks-rust</code></h2>
+<p>目前个人使用的<a href="https://github.com/chuxi/shadowsocks-rust/tree/1.15.2-fix">shadowsocks-rust fork</a>，可以基于此版本编译，版本分支号不定期更新</p>
+<p>在配置<code>Rust</code>开发环境之后，可以参考<code>.github/workflows/build-release.yml</code>文件，编译目标平台的可执行文件。此处针对<code>R2C-Plus</code>以及整个系列的产品，目标平台均为<code>aarch64-unknown-linux-musl</code>。</p>
+<p><code>./build/build-release -t aarch64-unknown-linux-musl -f local-redir,local-dns,security-replay-attack-detect,security-iv-printable-prefix</code></p>
+<p>注意该脚本使用<a href="https://github.com/cross-rs/cross">cross</a>实现跨平台交叉编译打包，需要预先安装<a href="https://docs.docker.com/engine/">docker</a>。</p>
+<p>此处暂不考虑集成到OpenWRT的包管理系统内，所以可以直接使用打包好的<code>tar.xz</code>文件，解压后执行对应的<code>sslocal</code>即可。注意在路由器上，需要配置<code>redir</code>与<code>dns</code>功能搭配使用。其中<code>security-replay-attack-detect</code>非常重要，VPS服务器会经常收到探测的连接数据包，如果不在配置中打开<code>重放攻击</code>防护功能，则很容易被黑名单而无法连接。至于<code>security-iv-printable-prefix</code>，被社区从<code>master</code>版本内移除，可能是当时开发人员利益相关的缘故，个人认为算是一个错误的修改。但这个特性非常有用，所以自己就在个人版本内保留了下来，并且做了改进优化，具体可以看<a href="https://github.com/chuxi/shadowsocks-rust/commit/4c59a6ac6b54c7ce4c8c50dd213cb2824f19c82b">commit</a>.</p>
+<p>如此编译的版本已经可以正常使用<code>socks5</code>与<code>http[s]</code>代理功能，但如果在路由设备上则需要更进一步。在个人笔记本或者手机上，解析一个网页或者软件的网络请求时，需要先解析域名<code>DNS</code>获取<code>IP</code>，再进一步将请求发送到服务器。国内主要无法上海外网站的原因，来自于请求解析域名<code>DNS</code>时，某个传说中的势力，返回了一个无法连接的假<code>IP</code>,即使配置了正确的域名解析服务器，也会在中间链路层串改其中返回的<code>IP</code>信息。如果是<code>Socks5</code>代理模式，则请求会直接转发到代理程序，包括目标的域名，所以不需要单独处理域名解析<code>DNS</code>问题。</p>
+<h2 id="local-rediryu-local-dns"><code>local-redir</code>与<code>local-dns</code></h2>
+<p><code>local-redir</code>是将收到的数据包，转发到国外VPS上的<code>ssserver</code>，所以路由器配置之后能够直接转发数据包。但此处路由器收到数据包时，是根据<code>IP</code>完成路由转发的。</p>
+<p><code>local-dns</code>根据ACL模式，接收到解析域名的请求时，提取出其中的域名部分，根据ACL列表的配置，决定本地<code>DNS</code>服务器获取解析结果，还是转发到<code>ssserver</code>服务代理解析。</p>
+<p>因为<code>Shadowsocks-Rust</code>支持多模块同时运行，所以两个功能可以一个进程完成启动。此处有非常多的细节，一个不小心便可能懵逼一整晚。</p>
+<p>创建<code>shadow.sh</code>脚本</p>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">root@FriendlyWrt:~#</span><span> cat shadow.sh
+</span><span style="color:#a0a1a7;">#!/bin/bash
+</span><span>
+</span><span style="color:#e45649;">DIR</span><span style="color:#a626a4;">=</span><span style="color:#50a14f;">$( </span><span style="color:#0184bc;">cd </span><span style="color:#50a14f;">$( </span><span style="color:#e45649;">dirname </span><span style="color:#50a14f;">$</span><span style="color:#e45649;">0 </span><span style="color:#50a14f;">) </span><span style="color:#a626a4;">&amp;&amp; </span><span style="color:#0184bc;">pwd </span><span style="color:#50a14f;">)
+</span><span style="color:#0184bc;">cd </span><span style="color:#50a14f;">&quot;$</span><span style="color:#e45649;">DIR</span><span style="color:#50a14f;">&quot;
+</span><span>
+</span><span style="color:#a0a1a7;"># 停止之前的sslocal进程
+</span><span style="color:#e45649;">cat</span><span> ss.pid </span><span style="color:#a626a4;">| </span><span style="color:#e45649;">xargs</span><span> kill</span><span style="color:#e45649;"> -15 </span><span style="color:#a626a4;">|| </span><span style="color:#e45649;">true
+</span><span>
+</span><span style="color:#e45649;">./sslocal -c</span><span> config.json</span><span style="color:#e45649;"> -d --daemonize-pid</span><span> ss.pid
+</span></code></pre>
+<ol>
+<li><code>-c config.json</code> 配置文件</li>
+<li><code>-d --daemonize-pid ss.pid</code> 保存启动后的<code>sslocal</code>守护进程id</li>
+</ol>
+<p>此外，<code>config.json</code>配置文件内，同时配置<code>redir</code>与<code>dns</code>本地服务</p>
+<pre data-lang="json" style="background-color:#fafafa;color:#383a42;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  </span><span style="color:#50a14f;">&quot;locals&quot;</span><span>: [
+</span><span>    {
+</span><span>      </span><span style="color:#50a14f;">&quot;local_address&quot;</span><span>: </span><span style="color:#50a14f;">&quot;::&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;local_port&quot;</span><span>: </span><span style="color:#c18401;">1080
+</span><span>    },
+</span><span>    {
+</span><span>      </span><span style="color:#50a14f;">&quot;local_address&quot;</span><span>: </span><span style="color:#50a14f;">&quot;::&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;local_port&quot;</span><span>: </span><span style="color:#c18401;">1081</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;protocol&quot;</span><span>: </span><span style="color:#50a14f;">&quot;http&quot;
+</span><span>    },
+</span><span>    {
+</span><span>      </span><span style="color:#50a14f;">&quot;local_address&quot;</span><span>: </span><span style="color:#50a14f;">&quot;::&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;local_port&quot;</span><span>: </span><span style="color:#c18401;">60080</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;protocol&quot;</span><span>: </span><span style="color:#50a14f;">&quot;redir&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;tcp_redir&quot;</span><span>: </span><span style="color:#50a14f;">&quot;tproxy&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;udp_redir&quot;</span><span>: </span><span style="color:#50a14f;">&quot;tproxy&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;mode&quot;</span><span>: </span><span style="color:#50a14f;">&quot;tcp_and_udp&quot;
+</span><span>    },
+</span><span>    {
+</span><span>      </span><span style="color:#50a14f;">&quot;local_address&quot;</span><span>: </span><span style="color:#50a14f;">&quot;::&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;local_port&quot;</span><span>: </span><span style="color:#c18401;">5333</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;protocol&quot;</span><span>: </span><span style="color:#50a14f;">&quot;dns&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;local_dns_address&quot;</span><span>: </span><span style="color:#50a14f;">&quot;114.114.114.114&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;local_dns_port&quot;</span><span>: </span><span style="color:#c18401;">53</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;remote_dns_address&quot;</span><span>: </span><span style="color:#50a14f;">&quot;1.1.1.1&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;remote_dns_port&quot;</span><span>: </span><span style="color:#c18401;">53</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;mode&quot;</span><span>: </span><span style="color:#50a14f;">&quot;udp_only&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;acl&quot;</span><span>: </span><span style="color:#50a14f;">&quot;shadowsocks-dns.acl&quot;
+</span><span>    }
+</span><span>  ],
+</span><span>
+</span><span>
+</span><span>  </span><span style="color:#50a14f;">&quot;servers&quot;</span><span>: [
+</span><span>    {
+</span><span>      </span><span style="color:#50a14f;">&quot;server&quot;</span><span>: </span><span style="color:#50a14f;">&quot;[server ip]&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;server_port&quot;</span><span>: </span><span style="color:#c18401;">8080</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;password&quot;</span><span>: </span><span style="color:#50a14f;">&quot;password&quot;</span><span>,
+</span><span>      </span><span style="color:#50a14f;">&quot;method&quot;</span><span>: </span><span style="color:#50a14f;">&quot;aes-256-gcm&quot;
+</span><span>    }
+</span><span>  ],
+</span><span>
+</span><span>  </span><span style="color:#50a14f;">&quot;timeout&quot;</span><span>: </span><span style="color:#c18401;">5</span><span>,
+</span><span>  </span><span style="color:#50a14f;">&quot;keep_alive&quot;</span><span>: </span><span style="color:#c18401;">5</span><span>,
+</span><span>  </span><span style="color:#50a14f;">&quot;nofile&quot;</span><span>: </span><span style="color:#c18401;">51200</span><span>,
+</span><span>  </span><span style="color:#50a14f;">&quot;ipv6_first&quot;</span><span>: </span><span style="color:#c18401;">false</span><span>,
+</span><span>  </span><span style="color:#50a14f;">&quot;ipv6_only&quot;</span><span>: </span><span style="color:#c18401;">false</span><span>,
+</span><span>  </span><span style="color:#50a14f;">&quot;acl&quot;</span><span>: </span><span style="color:#50a14f;">&quot;shadowsocks.acl&quot;</span><span>,
+</span><span>  </span><span style="color:#50a14f;">&quot;outbound_fwmark&quot;</span><span>: </span><span style="color:#c18401;">255</span><span>,
+</span><span>
+</span><span>  </span><span style="color:#50a14f;">&quot;log&quot;</span><span>: {
+</span><span>    </span><span style="color:#50a14f;">&quot;config_path&quot;</span><span>: </span><span style="color:#50a14f;">&quot;log4rs.yml&quot;
+</span><span>  },
+</span><span>
+</span><span>  </span><span style="color:#50a14f;">&quot;runtime&quot;</span><span>: {
+</span><span>    </span><span style="color:#50a14f;">&quot;mode&quot;</span><span>: </span><span style="color:#50a14f;">&quot;multi_thread&quot;</span><span>,
+</span><span>    </span><span style="color:#50a14f;">&quot;worker_count&quot;</span><span>: </span><span style="color:#c18401;">64
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>注意替换 <code>servers</code>内服务器信息即可</p>
+<ol>
+<li><code>locals</code>里<code>redir</code>的<code>tcp_redir</code>需要配置<code>tproxy</code>，当前透明代理基本采用tproxy模式</li>
+<li><code>locals</code>下<code>dns</code>的<code>local_port</code>配置端口5333，可以由<code>dnsmasq</code>配置指定域名转发到<code>local-dns</code>端口，也可以直接配置使用53端口，其中在<code>dnsmasq</code>转发时，只需要配置<code>网络-&gt;DHCP/DNS-&gt;常规-&gt;DNS转发</code>为<code>127.0.0.1:5333</code>，注意修改端口</li>
+<li><code>nofile</code>配置注意不要超过系统支持最大值，<code>cat /proc/sys/fs/file-max</code>查看</li>
+<li><code>security.replay_attack.policy</code>是必须强调的一个配置，建议在<code>ssserver</code>上启动，此处local本身没太大必要</li>
+<li><code>log.config_path</code>的配置文件<a href="https://github.com/shadowsocks/shadowsocks-rust/blob/master/configs/log4rs.yaml">log4rs.yml</a></li>
+<li><code>runtime.worker_count</code>代表最大线程数量，因为网络属于<code>IO</code>密集任务，可以适当大一些</li>
+<li><code>dns</code>服务的<code>mode</code>指定<code>udp_only</code>，更加稳定，<code>tcp</code>连接到<code>dns</code>服务器时，完成后会自动断开连接，而且关闭连接参数默认120秒，会导致路由连接数量巨大，影响性能</li>
+<li><a href="/downloads/shadowsocks.acl">shadowsocks.acl</a>与<a href="/downloads/shadowsocks-dns.acl">shadowsocks-dns.acl</a>文件可以在此处下载</li>
+</ol>
+<p><code>dns</code>建议使用<code>udp_only</code>，<code>tcp</code>连接在服务端获取解析信息后会自动断开连接，此时在<code>local-dns</code>内对于客户端连接有缓存，但该连接已经失效，所以会造成系统不断生成新的<code>tcp</code>连接，在一段时间后非常影响系统性能。但此外，注意部署的<code>server</code>需要配置<code>&quot;mode&quot;:&quot;tcp_and_udp&quot;</code>，同时检查iptables或者nftables已经打开了对应端口的<code>udp</code>协议。可以通过本地命令检查<code>udp</code>是否可以连接</p>
+<pre data-lang="shell" style="background-color:#fafafa;color:#383a42;" class="language-shell "><code class="language-shell" data-lang="shell"><span>dig @192.168.2.1 www.google.com -p 5333
+</span></code></pre>
+<p>把命令中的IP地址<code>192.168.2.1</code>更换成路由设备的ip，测试确认udp网络连接顺畅。</p>
+<h2 id="dnszhuan-fa-pei-zhi">DNS转发配置</h2>
+<p>一般情况下可以直接使用 <code>shadowsocks</code> 监听53端口，暂停<code>dnsmasq dns</code>功能，但考虑利用<code>dnsmasq</code>提供局域网内的dns解析配置服务，可以将<code>dns</code>流量通过<code>dnsmasq</code>转发到<code>shadowsocks</code>，具体配置如下：</p>
+<ol>
+<li><code>dnsmasq</code>配置<code>dns转发</code>，填入<code>127.0.0.1#5333</code>，此处端口为<code>shadowsocks dns</code>端口</li>
+<li>禁用本地<code>dnsmasq dns</code>解析，在<code>dnsmasq</code>内<code>HOSTS与解析文件</code>，<code>忽略解析文件</code>勾选即可。</li>
+</ol>
+<p>此时可以通过<code>shadowsocks</code>日志查看是否接收到dns查询信息。</p>
+<h2 id="tou-ming-dai-li-tproxy">透明代理 TProxy</h2>
+<p>路由器从网线硬件上接收到数据包后，会根据<code>netfilter</code>，也就是防火墙规则转发数据包。利用用户层面工具<code>iptables</code>与<code>ip6tables</code>，配置数据转发的规则。透明代理就是截取流过路由器的数据包，转发给上面运行的<code>redir</code>代理程序。注意此处已经将路由器建立成<code>dns</code>服务器，重点是<code>tproxy</code>配合<code>redir</code>，针对<code>dns</code>部分数据包，不再需要配置转发，而普通请求数据，根据<code>ip</code>地址，在<code>netfilter</code>中转发。</p>
+<h3 id="step1-an-zhuang-mo-kuai">Step1 安装模块</h3>
+<p>首先确定已经安装<code>iptables-mod-tproxy</code>，一般都是已经安装<code>opkg install iptables-mod-tproxy</code>，或者nftables下安装<code>kmod-nft-tproxy</code>与<code>kmod-nft-socket</code>，参考<a href="https://guide.v2fly.org/app/tproxy.html#%E9%85%8D%E7%BD%AE%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86%E8%A7%84%E5%88%99">配置透明代理规则</a>，同时，这一步后可以考虑重启路由设备</p>
+<h3 id="step2-pei-zhi-xi-tong-can-shu">Step2 配置系统参数</h3>
+<pre data-lang="shell" style="background-color:#fafafa;color:#383a42;" class="language-shell "><code class="language-shell" data-lang="shell"><span>sysctl -w net.bridge.bridge-nf-call-arptables=0
+</span><span>sysctl -w net.bridge.bridge-nf-call-iptables=0
+</span><span>sysctl -w net.bridge.bridge-nf-call-ip6tables=0
+</span></code></pre>
+<p>同步修改文件<code>/etc/sysctl.d/11-br-netfilter.conf</code>。</p>
+<p>其他参考配置：</p>
+<p>如果在<code>sslocal</code>进程中开启<code>debug</code>日志后，发现还是没有接收到数据，可能的两个配置是</p>
+<ol>
+<li><code>cat /etc/sysctl.d/10-default.conf</code>查看配置<code>net.ipv4.ip_forward=1</code>，ipv6同理</li>
+<li><code>cat /etc/sysctl.d/11-br-netfilter.conf</code>查看配置<code>net.bridge.bridge-nf-call-iptables=0</code></li>
+</ol>
+<p>尤其是第二个配置，<code>net.bridge.bridge-nf-call-iptables=1</code>或者<code>net.bridge.bridge-nf-call-ip6tables=1</code>会导致数据在流过<code>PREROUTING</code>后，转向<code>FORWARD</code>，而正确的情况应该是转入<code>INPUT</code>链表，最后进入代理应用程序。具体这也是个2009年的旧<a href="https://bugzilla.redhat.com/show_bug.cgi?id=512206">bug</a>。</p>
+<p>此外，可以执行<code>netstat -anptu | grep sslocal</code>，若是打开的连接数量过多，可能导致无法创建新的连接，或者上网卡顿，此时可以修改以下参数</p>
+<ol>
+<li><code>/etc/sysctl.d/31-optmize-proxy.conf</code>内配置<code>net.ipv4.tcp_fin_timeout = 5</code></li>
+<li><code>/etc/sysctl.d/31-optmize-proxy.conf</code>内配置<code>net.ipv4.tcp_keepalive_time = 15</code></li>
+</ol>
+<p>原有参数关闭<code>tcp</code>连接较慢，产生大量连接后无法及时释放文件，导致路由器卡顿。<code>/etc/sysctl.d/10-default.conf</code>内也有该配置参数，可以一并修改，修改配置之后重启生效即可</p>
+<h3 id="step3-pei-zhi-lu-you-biao">Step3 配置路由表</h3>
+<pre data-lang="shell" style="background-color:#fafafa;color:#383a42;" class="language-shell "><code class="language-shell" data-lang="shell"><span>ip -4 rule del fwmark 0x1 table 803
+</span><span>ip -4 rule add fwmark 0x1 table 803
+</span><span>ip -4 route del local 0.0.0.0/0 dev lo table 803
+</span><span>ip -4 route add local 0.0.0.0/0 dev lo table 803
+</span><span>
+</span><span>ip -6 rule del fwmark 0x1 table 803
+</span><span>ip -6 rule add fwmark 0x1 table 803
+</span><span>ip -6 route del local ::/0 dev lo table 803
+</span><span>ip -6 route add local ::/0 dev lo table 803
+</span></code></pre>
+<h3 id="step4-pei-zhi-nftables-iptables">Step4 配置nftables/iptables</h3>
+<p>配置文件<code>shadowproxy.nft</code>，使用<code>set</code>完成国内国外<code>ip</code>分离，且根据域名自动切换，其中利用脚本<a href="https://github.com/shadowsocks/shadowsocks-rust/blob/master/configs/genipset.py">genipset.py</a>生成的两个文件<a href="/downloads/chnip4.ips">chnip4.ips</a>, <a href="/downloads/chnip6.ips">chnip6.ips</a>，可以自行下载。</p>
+<p>注意执行 <code>nft -f shadowproxy.nft</code>，<code>nft</code>默认<code>include</code>搜索路径<code>/etc</code>，所以可以将下载的两个<code>ips</code>文件放到<code>/etc/chnip4.ips</code>，<code>/etc/chnip6.ips</code></p>
+<pre data-lang="shell" style="background-color:#fafafa;color:#383a42;" class="language-shell "><code class="language-shell" data-lang="shell"><span># shadowproxy.nft
+</span><span>define whitelist_v4 = {
+</span><span>    0.0.0.0/8,
+</span><span>    10.0.0.0/8,
+</span><span>    100.64.0.0/10,
+</span><span>    127.0.0.0/8,
+</span><span>    169.254.0.0/16,
+</span><span>    172.16.0.0/12,
+</span><span>    192.0.0.0/24,
+</span><span>    192.0.2.0/24,
+</span><span>    192.88.99.0/24,
+</span><span>    198.18.0.0/15,
+</span><span>    192.168.0.0/16,
+</span><span>    198.51.100.0/24,
+</span><span>    203.0.113.0/24,
+</span><span>    224.0.0.0/4,
+</span><span>    240.0.0.0/4,
+</span><span>#    VPS-SERVER_IPV4,
+</span><span>}
+</span><span>
+</span><span>define whitelist_v6 = {
+</span><span>    ::/128,
+</span><span>    ::1/128,
+</span><span>    ::ffff:0:0/96,
+</span><span>    ::ffff:0:0:0/96,
+</span><span>    64:ff9b::/96,
+</span><span>    100::/64,
+</span><span>    2001::/32,
+</span><span>    2001:20::/28,
+</span><span>    2001:db8::/32,
+</span><span>    2002::/16,
+</span><span>    fc00::/7,
+</span><span>    fe80::/10,
+</span><span>    ff00::/8,
+</span><span>#    VPS-SERVER_IPV6,
+</span><span>}
+</span><span>
+</span><span>define tproxy_port = 60080
+</span><span>
+</span><span>include &quot;chnip4.ips&quot;
+</span><span>include &quot;chnip6.ips&quot;
+</span><span>
+</span><span>table inet mangle {
+</span><span>    set whitelist_v4_set {
+</span><span>        type ipv4_addr
+</span><span>        flags interval
+</span><span>        elements=$whitelist_v4
+</span><span>    }
+</span><span>
+</span><span>    set whitelist_v6_set {
+</span><span>        type ipv6_addr
+</span><span>        flags interval
+</span><span>        elements=$whitelist_v6
+</span><span>    }
+</span><span>
+</span><span>    set chnip4_set {
+</span><span>        type ipv4_addr
+</span><span>        flags interval
+</span><span>        elements=$chnip4
+</span><span>    }
+</span><span>
+</span><span>    set chnip6_set {
+</span><span>        type ipv6_addr
+</span><span>        flags interval
+</span><span>        elements=$chnip6
+</span><span>    }
+</span><span>
+</span><span>    chain shadowproxy_input {
+</span><span>        type filter hook prerouting priority mangle; policy accept;
+</span><span>        ip daddr @whitelist_v4_set return comment &quot;bypass whitelist_v4&quot;
+</span><span>        ip6 daddr @whitelist_v6_set return comment &quot;bypass whitelist_v6&quot;
+</span><span>		ip daddr @chnip4_set return comment &quot;bypass chnip4&quot;
+</span><span>		ip6 daddr @chnip6_set return comment &quot;bypass chnip6&quot;
+</span><span>		udp dport 53 return comment &quot;ignore dns udp package&quot;
+</span><span>        meta l4proto tcp meta mark set 1 tproxy to :$tproxy_port accept
+</span><span>    }
+</span><span>
+</span><span># 自己个人没有路由自身代理的需求，减少麻烦就可以不需要shadowproxy_output部分配置
+</span><span>#    chain shadowproxy_output {
+</span><span>#		type route hook output priority mangle; policy accept;
+</span><span>#		meta l4proto tcp ct direction reply return comment &quot;tcp conntrack&quot;
+</span><span>#		meta mark 0x000000ff return comment &quot;bypass sslocal fwmark 255&quot;
+</span><span>#		ip daddr @whitelist_v4_set return comment &quot;bypass whitelist_v4&quot;
+</span><span>#		ip6 daddr @whitelist_v6_set return comment &quot;bypass whitelist_v6&quot;
+</span><span>#		ip daddr @chnip4_set return comment &quot;bypass chnip4&quot;
+</span><span>#		ip6 daddr @chnip6_set return comment &quot;bypass chnip6&quot;
+</span><span>#		meta l4proto tcp meta mark set 0x00000001 accept comment &quot;reroute to proxy&quot;
+</span><span>#    }
+</span><span>
+</span><span>}
+</span></code></pre>
+<p>如果完全配置正确，应该可以在 <code>shadowsocks</code> 内看到请求的流量通过。</p>
+<p>有的人可能还在使用<code>iptables-tproxy</code>转发数据，相比较之下，<code>nftables</code>能将<code>ipv4</code>与<code>ipv6</code>流量整合到一起转发，<code>set</code>的配置也比较简单，不再需要<code>ipset</code>的概念，以及其他的一些好处，的确是更鼓励大家转换到新的<code>nftables</code>管理，当然，两边的学习成本都不小。</p>
+<h2 id="warpyu-shadowsocks">WARP与shadowsocks</h2>
+<p>参考<a href="https://github.com/P3TERX/warp.sh">warp</a>脚本，可以在服务端设置非全局<code>wireguard</code>代理，执行<code>warp.sh wgx</code>。</p>
+<p>一般来说，服务端会选择配置 <code>warp</code>服务做转发，因为大部分 <code>vps ip</code> 无法直接访问netflix以及chatgpt等服务。所以可以在服务端配置<code>warp</code>，通过添加额外一个接口<code>wgcf</code>方式再做一层代理。这层代理往往速度较快，不会影响整个链路的速度。</p>
+<p>但这里<code>warp</code>存在一个问题，如果不是全局转发，即设置一个独立的接口，然后让server流量走这个接口的形式，如果使用了<code>outbound-bind-interface</code>，实际上只能使用<code>ipv4</code>，此时路由器<code>dns</code>解析的地址如果是<code>ipv6</code>，则会无法连接网络，返回错误<code>Network unreachable</code>，客户端本地产生大量的<code>ipv6</code>连接被关闭的错误。根本原因是在<code>libc socket.c</code>内，<code>SO_BINDTODEVICE</code>不支持<code>ivp6</code>，所以通过<code>wireguard</code>的接口无法发送<code>ipv6</code>数据包。</p>
+<p>在研究了<code>warp</code>非全局配置之后，发现在路由层面设置了<code>fwmark 51888</code>识别网络数据包，所以此处服务端额外添加配置<code>&quot;outbound_fwmark&quot;: 51888</code>，即可解决<code>warp.sh</code>无法代理<code>ipv6</code>数据流量的问题。</p>
+<h2 id="guan-yu-shadowsock-rust-ipk">关于shadowsock-rust.ipk</h2>
+<p>可以看到在<code>shadowsocks-rust</code>页面内推荐参考项目<a href="https://github.com/honwen/openwrt-shadowsocks-rust">openwrt-shadowsocks-rust</a>，实际上如果不是分发便于安装，可以不需要打包<code>ipk</code>格式文件，跳过这个过程至少节约了<code>openwrt sdk</code>下载配置编译过程。再是搭配<a href="https://github.com/honwen/luci-app-shadowsocks-rust">luci-app-shadowsocks-rust</a>，在查看该项目内的<code>ss-rule</code>构建透明代理的过程，可以借鉴优化，直接引入<code>iptables_tproxy.sh</code>，而<code>/etc/init.d/shadowsocks</code>文件过于臃肿，也可以适当简化。这里如果有可视化配置页面，就可以极大减少普通用户的学习曲线。</p>
+<p>也许过段时间，可以在当前配置基础上做OpenWrt分发版本，目前看基础配置已经基本完善，可以很好地实现一套自动切换的代理服务。</p>
+<h2 id="dnsjie-xi-guo-nei-guo-wai-ipwen-ti">dns解析国内国外ip问题</h2>
+<p>目前使用的是路由器层面支持网络代理，解决了<code>dns</code>解析与数据流量转发<code>tproxy</code>的问题，很多人会选择使用<code>旁路由</code>的形式部署，避免影响国内网站访问速度。实际上在上述代理配置中，可以额外给<code>dns</code>配置默认<code>bypass_all</code>的acl规则，这样可以保证大多数流量<code>dns</code>解析到国内的地址，比如<code>taobao.com</code>, <code>tmall.com</code>, <code>jd.com</code>等。而<code>redir</code>则继续使用<code>proxy_all</code>方式即可。目前个人使用下来基本上能很好保证国内流量的处理。而且，比如<code>apple</code>的一些服务也会根据国内国外做不同的处理，大多数问题也都是出在<code>dns</code>解析返回的<code>ip</code>不一样导致。完成这样的配置后，基本上达到完美的国内国外流量分流目的。</p>
+<h2 id="summary">Summary</h2>
+<p>事实上，<code>shadowsocks-rust</code>是非常优秀的项目，作者在日常的<code>issues</code>维护中，不断耐心地帮助他人，项目本身代码设计，除了兼容老版本的<code>shadowsocks</code>外，架构也设计得非常优美，模块化实现不同代理配置功能，能够快速支持开发新的功能。</p>
+<p>当然，直接使用现在发布的<code>shadowsocks-rust</code>包可能无法顺利访问一些网站，一般是需要额外配置插件，以及<code>ssserver</code>开启<code>security.replay_attack</code>重放攻击保护。</p>
+<p>Reference:</p>
+<ol>
+<li><a href="https://juejin.cn/post/7090181016135925796">Linux之iptables防火墙</a></li>
+<li><a href="http://www.hackdig.com/02/hack-597366.htm">记一次OpenWrt TPROXY透明代理踩坑之旅</a></li>
+<li><a href="https://feisky.gitbooks.io/sdn/content/linux/params.html#bridge-nf">bridge-nf</a></li>
+<li><a href="https://moecm.com/something-about-v2ray-with-tproxy/">第一篇万字长文：围绕透明代理的又一次探究</a></li>
+<li><a href="https://guide.v2fly.org/app/tproxy.html#%E9%85%8D%E7%BD%AE%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86%E8%A7%84%E5%88%99">为 V2Ray 配置透明代理</a></li>
+<li><a href="https://github.com/P3TERX/warp.sh">WARP.SH</a></li>
+</ol>
+
+        </section>
+
+        
+            <div class="post-tags">
+                <nav class="nav tags">
+                    <ul class="tags">
+                        
+                            <li><a href=https://chuxi.github.io/tags/network/>network</a></li>
+                        
+                            <li><a href=https://chuxi.github.io/tags/shadowsocks/>shadowsocks</a></li>
+                        
+                            <li><a href=https://chuxi.github.io/tags/rust/>rust</a></li>
+                        
+                    </ul>
+                </nav>
+            </div>
+        
+
+    </article>
+</main>
+
+
+
+        <footer>
+  <div style="display:flex">
+    
+        <a class="soc" href=https:&#x2F;&#x2F;github.com&#x2F;chuxi title=GitHub>
+            <i data-feather=github></i>
+        </a>
+    
+        <a class="soc" href=https:&#x2F;&#x2F;twitter.com&#x2F;chuxiking title=Twitter>
+            <i data-feather=twitter></i>
+        </a>
+    
+  </div>
+  <div class="footer-info">
+    2024 © chuxi |
+  </div>
+</footer>
+
+
+<script>
+    feather.replace();
+</script>
+
+
+    </div>
+</body>
+
+</html>

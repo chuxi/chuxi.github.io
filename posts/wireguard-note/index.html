@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    
+    <title>
+         WireGuard Note
+        
+    </title>
+    
+
+    
+         <link rel="icon" type="image/png" href=&#x2F;icon&#x2F;favicon.jpeg />
+    
+
+    
+
+    
+
+    
+        <!-- Cloudflare Web Analytics -->
+        <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+                data-cf-beacon='{"token": "a2ea65bd409f4a6d980c46cde3dc09c2"}'>
+        </script><!-- End Cloudflare Web Analytics -->
+    
+
+    
+    
+        <script src=https://chuxi.github.io/js/feather.min.js></script>
+    
+
+
+    
+        <link href=https://chuxi.github.io/css/fonts.css rel="stylesheet" />
+    
+
+    <link rel="stylesheet" type="text/css" media="screen" href=https://chuxi.github.io/css/main.css />
+
+    
+
+    <meta name="robots" content="index, follow">
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    
+        <meta name="description" content="wireguard deployment notes for myself case, recording best practice and problems">
+    
+    
+
+
+</head>
+
+
+<body>
+    <div class="content">
+        <header>
+    <div class="main" id="main_title">
+        <a href=https:&#x2F;&#x2F;chuxi.github.io>Chuxi&#x27;s Daily Posts</a>
+    </div>
+
+    <nav>
+        
+            <a href=&#x2F;>Home</a>
+        
+            <a href=&#x2F;posts>All posts</a>
+        
+            <a href=&#x2F;about>About</a>
+        
+            <a href=&#x2F;tags>Tags</a>
+        
+
+        
+            |
+
+            
+                <a href=&#x2F;>en</a>
+            
+        
+
+        
+    </nav>
+</header>
+
+
+        
+    
+<main>
+    <article>
+        <div class="title">
+            <h1 class="title">WireGuard Note</h1>
+            <div class="meta">
+                
+                on  2024-03-19
+
+                
+            </div>
+        </div>
+
+        
+
+        <section class="body">
+            <p>It can be very hard to get stable network connection between Japan and China Mainland, even the two countries are not too far geographically. (Thanks to the Mama of GFW.) The same as Singapore. </p>
+<p>To solve the problem, we can set up a server node in HongKong, which route is stable and fast from China mainland. By the intermediate node, we reroute all traffic from mainland to Tokyo. At last, we have a stable international network route. Of course, HongKong server is stable enough and why not just use it? Maybe some applications are forbidden or would be blocked in the future.</p>
+<p>So wireguard helps link two nodes as a virtual local subnetwork. Based on it, we can configure simple routes and rules to transfer all network traffic. </p>
+<h2 id="wireguard-setup">Wireguard Setup</h2>
+<p>It is not hard to set up a wireguard server and client peer. Just follow the tutorial on official quickstart document. And the best deployment tutorial from digitalocean.</p>
+<p>Here is my personal configuration for server and client wireguard interface.</p>
+<h3 id="wireguard-server-config">Wireguard Server Config</h3>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">cat</span><span> /etc/wireguard/wg0.conf 
+</span><span>
+</span><span style="color:#e45649;">[Interface]
+</span><span style="color:#e45649;">Address</span><span> = 10.18.0.1/24
+</span><span style="color:#e45649;">Address</span><span> = fd3b:bd46:db84::1/64
+</span><span style="color:#e45649;">SaveConfig</span><span> = true
+</span><span style="color:#e45649;">PostUp</span><span> = iptables</span><span style="color:#e45649;"> -A</span><span> FORWARD</span><span style="color:#e45649;"> -i</span><span> wg0</span><span style="color:#e45649;"> -j</span><span> ACCEPT
+</span><span style="color:#e45649;">PostUp</span><span> = ip6tables</span><span style="color:#e45649;"> -A</span><span> FORWARD</span><span style="color:#e45649;"> -i</span><span> wg0</span><span style="color:#e45649;"> -j</span><span> ACCEPT
+</span><span style="color:#e45649;">PostUp</span><span> = iptables</span><span style="color:#e45649;"> -t</span><span> nat</span><span style="color:#e45649;"> -I</span><span> POSTROUTING</span><span style="color:#e45649;"> -o</span><span> eth0</span><span style="color:#e45649;"> -j</span><span> MASQUERADE
+</span><span style="color:#e45649;">PostUp</span><span> = ip6tables</span><span style="color:#e45649;"> -t</span><span> nat</span><span style="color:#e45649;"> -I</span><span> POSTROUTING</span><span style="color:#e45649;"> -o</span><span> eth0</span><span style="color:#e45649;"> -j</span><span> MASQUERADE
+</span><span style="color:#e45649;">PostDown</span><span> = iptables</span><span style="color:#e45649;"> -D</span><span> FORWARD</span><span style="color:#e45649;"> -i</span><span> wg0</span><span style="color:#e45649;"> -j</span><span> ACCEPT
+</span><span style="color:#e45649;">PostDown</span><span> = ip6tables</span><span style="color:#e45649;"> -D</span><span> FORWARD</span><span style="color:#e45649;"> -i</span><span> wg0</span><span style="color:#e45649;"> -j</span><span> ACCEPT
+</span><span style="color:#e45649;">PostDown</span><span> = iptables</span><span style="color:#e45649;"> -t</span><span> nat</span><span style="color:#e45649;"> -D</span><span> POSTROUTING</span><span style="color:#e45649;"> -o</span><span> eth0</span><span style="color:#e45649;"> -j</span><span> MASQUERADE
+</span><span style="color:#e45649;">PostDown</span><span> = ip6tables</span><span style="color:#e45649;"> -t</span><span> nat</span><span style="color:#e45649;"> -D</span><span> POSTROUTING</span><span style="color:#e45649;"> -o</span><span> eth0</span><span style="color:#e45649;"> -j</span><span> MASQUERADE
+</span><span style="color:#e45649;">ListenPort</span><span> = 51888
+</span><span style="color:#e45649;">PrivateKey</span><span> = xxxxxxxx
+</span><span>
+</span><span style="color:#e45649;">[Peer]
+</span><span style="color:#e45649;">PublicKey</span><span> = xxxxxxxx
+</span><span style="color:#e45649;">AllowedIPs</span><span> = 10.18.0.2/32, fd3b:bd46:db84::2/128
+</span></code></pre>
+<ol>
+<li><code>eth0</code> is the actual interface name for your server node</li>
+<li>Address <code>10.18.0.1/24</code> and <code>fd3b:bd46:db84::1/64</code> is from the digitalocean tutorial</li>
+<li>Update of <code>Forward</code> chain if it is <code>DROP</code> policy. <code>iptables -A FORWARD -i wg0 -j ACCEPT</code></li>
+<li>it is important to NAT the forwarding traffic packages with <code>MASQUERADE</code>, which hides your actual IPs</li>
+<li>Set a fixed listening port, and allow it in firewall. <code>ListenPort = 51888</code></li>
+</ol>
+<h3 id="wireguard-client-config">Wireguard Client Config</h3>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">cat</span><span> /etc/wireguard/wg0.conf 
+</span><span>
+</span><span style="color:#e45649;">[Interface]
+</span><span style="color:#e45649;">PrivateKey</span><span> = xxxxxxxx
+</span><span style="color:#e45649;">Address</span><span> = 10.18.0.2/24
+</span><span style="color:#e45649;">Address</span><span> = fd3b:bd46:db84::2/64
+</span><span style="color:#e45649;">ListenPort</span><span> = 51888
+</span><span style="color:#e45649;">DNS</span><span> = 108.61.10.10 2001:19f0:300:1704::6
+</span><span style="color:#e45649;">Table</span><span> = off
+</span><span>
+</span><span style="color:#e45649;">PostUp</span><span> = ip</span><span style="color:#e45649;"> -4</span><span> route add default dev wg0 table 618
+</span><span style="color:#e45649;">PostUp</span><span> = ip</span><span style="color:#e45649;"> -4</span><span> rule add fwmark 108 table 618
+</span><span style="color:#e45649;">PostUp</span><span> = ip</span><span style="color:#e45649;"> -4</span><span> rule add from 10.18.0.2 table 618
+</span><span>
+</span><span style="color:#e45649;">PostUp</span><span> = ip</span><span style="color:#e45649;"> -6</span><span> route add default dev wg0 table 618
+</span><span style="color:#e45649;">PostUp</span><span> = ip</span><span style="color:#e45649;"> -6</span><span> rule add fwmark 108 table 618
+</span><span style="color:#e45649;">PostUp</span><span> = ip</span><span style="color:#e45649;"> -6</span><span> rule add from fd3b:bd46:db84::2 table 618
+</span><span>
+</span><span style="color:#e45649;">PreDown</span><span> = ip</span><span style="color:#e45649;"> -4</span><span> rule delete fwmark 108 table 618
+</span><span style="color:#e45649;">PreDown</span><span> = ip</span><span style="color:#e45649;"> -4</span><span> rule delete from 10.18.0.2 table 618
+</span><span style="color:#e45649;">PreDown</span><span> = ip</span><span style="color:#e45649;"> -4</span><span> route delete default dev wg0 table 618
+</span><span>
+</span><span style="color:#e45649;">PreDown</span><span> = ip</span><span style="color:#e45649;"> -6</span><span> rule delete fwmark 108 table 618
+</span><span style="color:#e45649;">PreDown</span><span> = ip</span><span style="color:#e45649;"> -6</span><span> rule delete from fd3b:bd46:db84::2 table 618
+</span><span style="color:#e45649;">PreDown</span><span> = ip</span><span style="color:#e45649;"> -6</span><span> route delete default dev wg0 table 618
+</span><span>
+</span><span style="color:#e45649;">[Peer]
+</span><span style="color:#e45649;">PublicKey</span><span> = xxxxxxxx
+</span><span style="color:#e45649;">AllowedIPs</span><span> = 0.0.0.0/0, ::/0 
+</span><span style="color:#e45649;">Endpoint</span><span> = {SERVER_PUBLIC_IP}:51888
+</span></code></pre>
+<ol>
+<li>Address must match the server net mask range.</li>
+<li><code>DNS</code> is optional, our intermediate server node could resolve domains, actually.</li>
+<li><code>Table = off</code> is very important, when starting the <code>wg-quick</code>, it disables the autoconfiguration for routing all traffics. So we can set up rules based on <code>fwmark</code> and <code>interface</code>.</li>
+<li>It creates a route in table <code>route add default dev wg0 table 618</code>. Then add the two rules for rerouting to the table <code>618</code>
+<ol>
+<li><code>rule add fwmark 108 table 618</code>, set the <code>fwmark</code> value as you like</li>
+<li><code>rule add from 10.18.0.2 table 618</code>, match the interface ip <code>10.18.0.2</code></li>
+</ol>
+</li>
+<li><code>AllowedIPs</code> is very important. It defines the target IP ranges for this peer, that it can reach by the wireguard server.</li>
+</ol>
+<p>For our rerouting proxy service, we need the wireguard client to transfer all traffics. So the <code>AllowedIPs</code> must be <code>0.0.0.0/0, ::/0</code>. Or we could get error <code>No route to host</code>. However, once it is set, the wireguard tool <code>wg-quick</code> will set the route and rules automatically, which results ssh connection lost. For more details, check the <a href="https://www.digitalocean.com/community/tutorials/how-to-set-up-wireguard-on-ubuntu-20-04#step-8-adding-the-peer-s-public-key-to-the-wireguard-server">DigitalOcean Tutorial</a>.</p>
+<p>To resolve the problem, We should set <code>Table = Off</code>, it will disable the autoconfiguration.</p>
+<h3 id="useful-tips">Useful Tips</h3>
+<h4 id="check-the-routes-and-rules-work-correctly">Check the routes and rules work correctly</h4>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#a0a1a7;"># ip route get 1.1.1.1 from 10.18.0.2
+</span><span style="color:#e45649;">1.1.1.1</span><span> from 10.18.0.2 dev wg0 table 618 mark 0x6c uid 0 
+</span><span>    </span><span style="color:#e45649;">cache 
+</span><span>
+</span><span style="color:#a0a1a7;"># ip route get 1.1.1.1 mark 108
+</span><span style="color:#e45649;">1.1.1.1</span><span> dev wg0 table 618 src 10.18.0.2 mark 0x6c uid 0 
+</span><span>    </span><span style="color:#e45649;">cache 
+</span></code></pre>
+<h4 id="check-the-wireguard-client-work-correctly">Check the wireguard client work correctly</h4>
+<p><a href="https://www.wireguard.com/quickstart/#debug-info">Wireguard Kernel Debug Info</a></p>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">modprobe</span><span> wireguard </span><span style="color:#a626a4;">&amp;&amp; </span><span style="color:#0184bc;">echo</span><span> module wireguard +p </span><span style="color:#a626a4;">&gt;</span><span> /sys/kernel/debug/dynamic_debug/control
+</span></code></pre>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#a0a1a7;"># get the kernel debug info
+</span><span style="color:#e45649;">dmesg -W
+</span></code></pre>
+<h2 id="shadowsocks-rust-config">Shadowsocks-Rust Config</h2>
+<p>To make it work with the shadowsocks server together, we need to config the <code>outbound_fwmark</code> for servers. </p>
+<ol>
+<li><code>&quot;outbound_fwmark&quot;: 108</code> in config json file.</li>
+<li>Or add with the start command line <code>--outbound-fwmark 108</code></li>
+</ol>
+<p>Check your IP and location on <code>ifconfig.co</code></p>
+<h2 id="conclusion">Conclusion</h2>
+<p>With the help of wireguard, now we can set up our own routes to the world. If it has a wall, it always has a gap.</p>
+<h2 id="reference">Reference</h2>
+<ol>
+<li><a href="https://www.wireguard.com/quickstart/">Wireguard Official Doc</a></li>
+<li><a href="https://www.digitalocean.com/community/tutorials/how-to-set-up-wireguard-on-ubuntu-20-04">DigitalOcean Tutorial: How to set up wireguard on ubuntu 20.04</a></li>
+<li><a href="https://docs.vultr.com/set-up-wireguard-vpn-on-ubuntu-20-04">Vultr Tutorial: Set up wireguard vpn on ubuntu 20.04</a></li>
+<li><a href="https://git.zx2c4.com/wireguard-tools/about/src/man/wg-quick.8">Manual: wg-quick</a></li>
+<li><a href="https://man7.org/linux/man-pages/man8/wg.8.html">Manual: wg</a></li>
+<li><a href="https://man7.org/linux/man-pages/man8/ip-rule.8.html">Manual: ip-rule</a></li>
+<li><a href="https://man7.org/linux/man-pages/man8/ip-route.8.html">Manual: ip-route</a></li>
+</ol>
+
+        </section>
+
+        
+            <div class="post-tags">
+                <nav class="nav tags">
+                    <ul class="tags">
+                        
+                            <li><a href=https://chuxi.github.io/tags/network/>network</a></li>
+                        
+                            <li><a href=https://chuxi.github.io/tags/proxy/>proxy</a></li>
+                        
+                    </ul>
+                </nav>
+            </div>
+        
+
+    </article>
+</main>
+
+
+
+        <footer>
+  <div style="display:flex">
+    
+        <a class="soc" href=https:&#x2F;&#x2F;github.com&#x2F;chuxi title=GitHub>
+            <i data-feather=github></i>
+        </a>
+    
+        <a class="soc" href=https:&#x2F;&#x2F;twitter.com&#x2F;chuxiking title=Twitter>
+            <i data-feather=twitter></i>
+        </a>
+    
+  </div>
+  <div class="footer-info">
+    2024 © chuxi |
+  </div>
+</footer>
+
+
+<script>
+    feather.replace();
+</script>
+
+
+    </div>
+</body>
+
+</html>
